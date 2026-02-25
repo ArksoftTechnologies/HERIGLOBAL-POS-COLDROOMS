@@ -1,0 +1,107 @@
+{% extends "pdf/base.html" %}
+
+{% block title %}Remittance Record - {{ remittance.remittance_number }}{% endblock %}
+{% block filename %}Remittance_{{ remittance.remittance_number }}{% endblock %}
+
+{% block content %}
+<div class="receipt-title">Remittance Record</div>
+
+<div class="grid grid-cols-2 gap-4 bg-gray-50 border border-gray-200 rounded-lg p-6 mb-8 mt-6">
+    <div>
+        <div class="text-sm font-semibold text-gray-500 mb-1">Remittance Number</div>
+        <div class="text-base font-bold text-gray-900">{{ remittance.remittance_number }}</div>
+    </div>
+    <div>
+        <div class="text-sm font-semibold text-gray-500 mb-1">Date</div>
+        <div class="text-base font-medium text-gray-800">{{ remittance.remittance_date.strftime('%B %d, %Y') }}</div>
+    </div>
+    <div>
+        <div class="text-sm font-semibold text-gray-500 mb-1">Representative</div>
+        <div class="text-base font-medium text-gray-800">{{ sales_rep.full_name }} <span
+                class="text-sm text-gray-500">({{ sales_rep.username }})</span></div>
+    </div>
+    <div>
+        <div class="text-sm font-semibold text-gray-500 mb-1">Method</div>
+        <span
+            class="inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold bg-indigo-100 text-indigo-800">
+            {{ remittance.remittance_method|replace('_', ' ')|title }}
+        </span>
+    </div>
+</div>
+
+{% if remittance.bank_name %}
+<div class="mb-8 border border-gray-200 rounded-lg overflow-hidden">
+    <div class="bg-gray-50 px-6 py-3 border-b border-gray-200">
+        <h3 class="text-sm font-bold text-gray-800 uppercase tracking-wider">Bank Details</h3>
+    </div>
+    <div class="p-6 grid grid-cols-2 gap-4 bg-white">
+        <div>
+            <div class="text-sm font-semibold text-gray-500 mb-1">Bank Name</div>
+            <div class="text-base font-medium text-gray-900">{{ remittance.bank_name }}</div>
+        </div>
+        {% if remittance.account_number %}
+        <div>
+            <div class="text-sm font-semibold text-gray-500 mb-1">Account Number</div>
+            <div class="text-base font-medium text-gray-900">{{ remittance.account_number }}</div>
+        </div>
+        {% endif %}
+        {% if remittance.transaction_reference %}
+        <div class="col-span-2 pt-2 border-t border-gray-100">
+            <div class="text-sm font-semibold text-gray-500 mb-1">Transaction Ref</div>
+            <div class="text-base font-bold text-gray-900 font-mono bg-gray-100 px-3 py-1 inline-block rounded">{{
+                remittance.transaction_reference }}</div>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endif %}
+
+<div class="flex justify-end mb-8 mt-10">
+    <div class="w-2/3 md:w-1/2">
+        <div class="flex justify-between items-center py-4 border-t-2 border-indigo-600 bg-indigo-50 px-6 rounded-b-lg">
+            <span class="text-lg font-extrabold text-indigo-900">AMOUNT REMITTED:</span>
+            <span class="text-xl font-bold text-emerald-600 tabular-nums tracking-tight">₦{{
+                "{:,.2f}".format(remittance.amount) }}</span>
+        </div>
+    </div>
+</div>
+
+{% if remittance.notes %}
+<div class="mt-6 p-4 border border-gray-200 bg-gray-50 rounded-lg text-sm">
+    <strong class="text-gray-700 block mb-1">Notes:</strong>
+    <span class="text-gray-600">{{ remittance.notes }}</span>
+</div>
+{% endif %}
+
+<div class="mt-8 p-5 bg-emerald-50 border-l-4 border-emerald-500 rounded-r-lg">
+    <strong class="text-emerald-800 text-sm tracking-wide uppercase flex items-center">
+        <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"
+            xmlns="http://www.w3.org/2000/svg">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+        </svg>
+        Remittance Confirmation
+    </strong>
+    <p class="text-sm text-emerald-700 mt-2 leading-relaxed">
+        This remittance has been recorded in the system. Your outstanding balance has been updated accordingly.
+    </p>
+</div>
+
+<div class="mt-6 flex items-center justify-end">
+    <span class="text-sm font-semibold text-gray-600 mr-3">Status:</span>
+    {% if remittance.status == 'recorded' %}
+    <span
+        class="inline-flex items-center px-3 py-1 rounded-md text-sm font-medium bg-blue-100 text-blue-800">Recorded</span>
+    {% elif remittance.status == 'verified' %}
+    <span class="inline-flex items-center px-3 py-1 rounded-md text-sm font-bold bg-green-100 text-green-800">
+        <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+        </svg>
+        Verified
+    </span>
+    {% elif remittance.status == 'rejected' %}
+    <span
+        class="inline-flex items-center px-3 py-1 rounded-md text-sm font-bold bg-red-100 text-red-800">Rejected</span>
+    {% endif %}
+</div>
+{% endblock %}

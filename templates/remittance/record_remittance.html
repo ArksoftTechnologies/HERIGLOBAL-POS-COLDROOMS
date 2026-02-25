@@ -1,0 +1,251 @@
+{% extends "base.html" %}
+
+{% block title %}Record Remittance{% endblock %}
+
+{% block content %}
+<div class="max-w-2xl mx-auto">
+    <!-- Header -->
+    <div class="mb-8">
+        <a href="{{ url_for('remittance.index') }}" class="text-gray-500 hover:text-gray-700 flex items-center mb-4">
+            <i data-lucide="arrow-left" class="w-4 h-4 mr-1"></i> Back to Dashboard
+        </a>
+        <h1 class="text-2xl font-bold text-gray-900">Record Remittance</h1>
+        <p class="text-gray-500 mt-1">Record money sent to the company accounts.</p>
+    </div>
+
+    <!-- Outstanding Balance Card -->
+    {% if current_user.role == 'sales_rep' %}
+    <div
+        class="bg-gradient-to-r from-blue-600 to-blue-700 rounded-xl shadow-lg p-6 mb-8 text-white relative overflow-hidden">
+        <div class="absolute right-0 top-0 opacity-10 transform translate-x-1/4 -translate-y-1/4">
+            <i data-lucide="wallet" class="w-48 h-48"></i>
+        </div>
+        <div class="relative z-10">
+            <p class="text-blue-100 font-medium text-sm uppercase tracking-wider">Current Outstanding Balance</p>
+            <p class="text-4xl font-bold mt-2">₦{{ "{:,.2f}".format(outstanding_balance) }}</p>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Form -->
+    <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-6" x-data="remittanceForm()">
+        <form @submit.prevent="submitForm">
+            <div class="space-y-6">
+
+                <!-- Date & Amount Row -->
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Remittance Date *</label>
+                        <input type="date" x-model="remittance_date"
+                            class="w-full rounded-lg border-gray-300 focus:border-blue-500 focus:ring-blue-500"
+                            :class="{'border-red-300': v.date.error}">
+                        <p x-show="v.date.error" x-text="v.date.message" class="mt-1 text-xs text-red-600"></p>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Amount to Remit (₦) *</label>
+                        <input type="number" step="0.01" x-model="amount"
+                            class="w-full rounded-lg border-gray-300 focus:border-blue-500 focus:ring-blue-500 text-lg font-semibold"
+                            placeholder="0.00" :class="{'border-red-300': v.amount.error}">
+                        <p x-show="v.amount.error" x-text="v.amount.message" class="mt-1 text-xs text-red-600"></p>
+
+                        <!-- Quick Actions -->
+                        {% if current_user.role == 'sales_rep' and outstanding_balance > 0 %}
+                        <div class="mt-2 flex gap-2">
+                            <button type="button" @click="amount = '{{ outstanding_balance }}'"
+                                class="text-xs bg-blue-50 text-blue-600 px-2 py-1 rounded hover:bg-blue-100">
+                                Full Balance
+                            </button>
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+
+                <!-- Method -->
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Remittance Method *</label>
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
+                        <label class="cursor-pointer">
+                            <input type="radio" name="method" value="bank_transfer" x-model="remittance_method"
+                                class="sr-only peer">
+                            <div
+                                class="px-4 py-3 text-center rounded-lg border border-gray-200 peer-checked:bg-blue-50 peer-checked:border-blue-500 peer-checked:text-blue-700 hover:bg-gray-50 transition-colors">
+                                <i data-lucide="building-2" class="w-5 h-5 mx-auto mb-1"></i>
+                                <span class="text-sm font-medium">Bank Transfer</span>
+                            </div>
+                        </label>
+                        <label class="cursor-pointer">
+                            <input type="radio" name="method" value="cash_deposit" x-model="remittance_method"
+                                class="sr-only peer">
+                            <div
+                                class="px-4 py-3 text-center rounded-lg border border-gray-200 peer-checked:bg-blue-50 peer-checked:border-blue-500 peer-checked:text-blue-700 hover:bg-gray-50 transition-colors">
+                                <i data-lucide="banknote" class="w-5 h-5 mx-auto mb-1"></i>
+                                <span class="text-sm font-medium">Cash Deposit</span>
+                            </div>
+                        </label>
+                        <label class="cursor-pointer">
+                            <input type="radio" name="method" value="other" x-model="remittance_method"
+                                class="sr-only peer">
+                            <div
+                                class="px-4 py-3 text-center rounded-lg border border-gray-200 peer-checked:bg-blue-50 peer-checked:border-blue-500 peer-checked:text-blue-700 hover:bg-gray-50 transition-colors">
+                                <i data-lucide="more-horizontal" class="w-5 h-5 mx-auto mb-1"></i>
+                                <span class="text-sm font-medium">Other</span>
+                            </div>
+                        </label>
+                    </div>
+                </div>
+
+                <!-- Bank Info (Conditional) -->
+                <div x-show="remittance_method === 'bank_transfer' || remittance_method === 'cash_deposit'"
+                    class="space-y-4 border-t border-gray-100 pt-4">
+                    <p class="text-sm font-medium text-gray-900">Bank Information</p>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-xs font-medium text-gray-500 mb-1">Bank Name *</label>
+                            <input type="text" x-model="bank_name"
+                                class="w-full rounded-lg border-gray-300 focus:border-blue-500 focus:ring-blue-500"
+                                placeholder="e.g. First Bank">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-medium text-gray-500 mb-1">Account Number</label>
+                            <input type="text" x-model="account_number"
+                                class="w-full rounded-lg border-gray-300 focus:border-blue-500 focus:ring-blue-500">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Reference & Notes -->
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Transaction Ref *</label>
+                        <input type="text" x-model="transaction_reference"
+                            class="w-full rounded-lg border-gray-300 focus:border-blue-500 focus:ring-blue-500"
+                            placeholder="e.g. Teller No., Transfer Ref" :class="{'border-red-300': v.ref.error}">
+                        <p class="text-xs text-gray-500 mt-1">Required for verification.</p>
+                        <p x-show="v.ref.error" x-text="v.ref.message" class="mt-1 text-xs text-red-600"></p>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Payment Mode (Optional)</label>
+                        <select x-model="payment_mode_id"
+                            class="w-full rounded-lg border-gray-300 focus:border-blue-500 focus:ring-blue-500">
+                            <option value="">Select mode...</option>
+                            {% for mode in payment_modes %}
+                            <option value="{{ mode.id }}">{{ mode.name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                </div>
+
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Notes (Optional)</label>
+                    <textarea x-model="notes" rows="2"
+                        class="w-full rounded-lg border-gray-300 focus:border-blue-500 focus:ring-blue-500"></textarea>
+                </div>
+
+                <!-- Submit Button -->
+                <div class="pt-4 flex items-center justify-end">
+                    <button type="submit"
+                        class="inline-flex items-center px-6 py-3 border border-transparent text-base font-medium rounded-lg shadow-sm text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
+                        :disabled="processing">
+                        <span x-show="processing" class="mr-2">
+                            <i class="animate-spin" data-lucide="loader-2"></i>
+                        </span>
+                        Submit Remittance
+                    </button>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+    function remittanceForm() {
+        return {
+            remittance_date: '{{ today }}',
+            amount: '',
+            remittance_method: 'bank_transfer',
+            bank_name: '',
+            account_number: '',
+            transaction_reference: '',
+            payment_mode_id: '',
+            notes: '',
+            processing: false,
+            v: {
+                date: { error: false, message: '' },
+                amount: { error: false, message: '' },
+                ref: { error: false, message: '' }
+            },
+
+            validate() {
+                let valid = true;
+                this.v.date.error = false;
+                this.v.amount.error = false;
+                this.v.ref.error = false;
+
+                if (!this.remittance_date) {
+                    this.v.date.error = true;
+                    this.v.date.message = 'Required';
+                    valid = false;
+                }
+
+                if (!this.amount || parseFloat(this.amount) <= 0) {
+                    this.v.amount.error = true;
+                    this.v.amount.message = 'Enter valid amount';
+                    valid = false;
+                }
+
+                if ((this.remittance_method === 'bank_transfer' || this.remittance_method === 'cash_deposit') && !this.transaction_reference) {
+                    this.v.ref.error = true;
+                    this.v.ref.message = 'Reference number required for verification';
+                    valid = false;
+                }
+
+                if (this.remittance_method === 'bank_transfer' && !this.bank_name) {
+                    // Could add validation for bank name too, but let's keep it simple
+                    // Or alert user
+                }
+
+                return valid;
+            },
+
+            async submitForm() {
+                if (!this.validate()) return;
+
+                this.processing = true;
+
+                try {
+                    const response = await fetch("{{ url_for('remittance.record_remittance') }}", {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'X-CSRFToken': '{{ csrf_token() }}'
+                        },
+                        body: JSON.stringify({
+                            remittance_date: this.remittance_date,
+                            amount: this.amount,
+                            remittance_method: this.remittance_method,
+                            bank_name: this.bank_name,
+                            account_number: this.account_number,
+                            transaction_reference: this.transaction_reference,
+                            payment_mode_id: this.payment_mode_id,
+                            notes: this.notes
+                        })
+                    });
+
+                    const result = await response.json();
+
+                    if (result.success) {
+                        window.location.href = result.redirect;
+                    } else {
+                        alert(result.error || 'Failed to record remittance');
+                    }
+                } catch (e) {
+                    console.error(e);
+                    alert('An error occurred');
+                } finally {
+                    this.processing = false;
+                }
+            }
+        }
+    }
+</script>
+{% endblock %}

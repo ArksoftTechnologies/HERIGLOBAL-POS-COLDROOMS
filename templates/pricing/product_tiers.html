@@ -1,0 +1,252 @@
+{% extends "base.html" %}
+{% block title %}Tiers: {{ product.name }} — {{ app_name }}{% endblock %}
+{% block header_title %}Product Price Tiers{% endblock %}
+
+{% block content %}
+<div class="space-y-6">
+
+    <!-- Breadcrumb -->
+    <nav class="flex" aria-label="Breadcrumb">
+        <ol class="inline-flex items-center space-x-2 text-sm text-gray-500">
+            <li><a href="{{ url_for('pricing.index') }}" class="hover:text-gray-900">Pricing</a></li>
+            <li><span class="mx-1">/</span></li>
+            <li class="text-gray-800 font-medium">{{ product.name }}</li>
+        </ol>
+    </nav>
+
+    <!-- Header -->
+    <div class="bg-white rounded-xl border border-gray-200 shadow-sm p-6">
+        <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+            <div>
+                <h2 class="text-xl font-bold text-gray-900">{{ product.name }}</h2>
+                <p class="text-sm text-gray-500 mt-1">
+                    SKU: <span class="font-mono">{{ product.sku }}</span> &bull;
+                    Base Selling Price: <strong class="text-gray-800">₦{{ "{:,.2f}".format(product.selling_price)
+                        }}</strong>
+                    <span class="text-xs text-gray-400 ml-2">(used as fallback when no tier matches)</span>
+                </p>
+            </div>
+            <a href="{{ url_for('products.detail', id=product.id) }}"
+                class="inline-flex items-center px-3 py-2 text-sm border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50">
+                <i data-lucide="external-link" class="w-4 h-4 mr-2"></i>View Product
+            </a>
+        </div>
+    </div>
+
+    <!-- Tier Explanation -->
+    <div class="bg-blue-50 border border-blue-200 rounded-xl p-4 text-sm text-blue-800">
+        <div class="flex items-start gap-3">
+            <i data-lucide="info" class="w-5 h-5 mt-0.5 flex-shrink-0"></i>
+            <div>
+                <strong>How tiers work:</strong> When a cashier sells this product, the system checks the total quantity
+                ordered.
+                It matches the quantity to the applicable tier range and applies that tier's price automatically.
+                Quantity ranges must not overlap. If no range matches, the base selling price (₦{{
+                "{:,.2f}".format(product.selling_price) }}) is used.
+                Outlet-specific overrides can further customise the price per outlet.
+            </div>
+        </div>
+    </div>
+
+    <!-- Current Tiers Table -->
+    <div class="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
+        <div class="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
+            <h3 class="font-semibold text-gray-900">Active Price Tiers</h3>
+            <span class="text-xs text-gray-400">{{ tiers|length }} tier(s) configured</span>
+        </div>
+
+        {% if tiers %}
+        <div class="overflow-x-auto">
+            <table class="min-w-full divide-y divide-gray-200 text-sm">
+                <thead class="bg-gray-50">
+                    <tr>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Tier Name</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Min Qty</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Max Qty</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Price (₦)</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
+                        <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">Actions</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-gray-100">
+                    {% for tier in tiers %}
+                    <tr class="hover:bg-gray-50 {% if not tier.is_active %}opacity-50{% endif %}">
+                        <td class="px-6 py-4">
+                            <span class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold
+                                {% if tier.tier_name == 'consumer' %}bg-orange-100 text-orange-800
+                                {% elif tier.tier_name == 'retail' %}bg-blue-100 text-blue-800
+                                {% elif tier.tier_name == 'wholesale' %}bg-purple-100 text-purple-800
+                                {% else %}bg-gray-100 text-gray-700{% endif %}">
+                                {{ tier.tier_name | capitalize }}
+                            </span>
+                        </td>
+                        <td class="px-6 py-4 font-mono text-gray-700">{{ tier.min_qty }}</td>
+                        <td class="px-6 py-4 font-mono text-gray-700">{{ tier.max_qty if tier.max_qty is not none else
+                            '∞' }}</td>
+                        <td class="px-6 py-4 font-semibold text-gray-900">₦{{ "{:,.2f}".format(tier.price) }}</td>
+                        <td class="px-6 py-4">
+                            {% if tier.is_active %}
+                            <span class="text-xs text-green-700 bg-green-100 px-2 py-0.5 rounded-full">Active</span>
+                            {% else %}
+                            <span class="text-xs text-gray-500 bg-gray-100 px-2 py-0.5 rounded-full">Inactive</span>
+                            {% endif %}
+                        </td>
+                        <td class="px-6 py-4 text-right">
+                            <div class="flex justify-end gap-2">
+                                <!-- Edit button triggers modal -->
+                                <button type="button" data-tier-id="{{ tier.id }}" data-tier-name="{{ tier.tier_name }}"
+                                    data-min-qty="{{ tier.min_qty }}"
+                                    data-max-qty="{{ tier.max_qty if tier.max_qty is not none else '' }}"
+                                    data-price="{{ tier.price }}" onclick="openEditModal(this)"
+                                    class="text-xs px-3 py-1.5 text-indigo-700 bg-indigo-50 rounded-lg hover:bg-indigo-100">
+                                    <i data-lucide="edit-3" class="w-3.5 h-3.5 inline-block mr-1"></i>Edit
+                                </button>
+                                <!-- Delete -->
+                                <form
+                                    action="{{ url_for('pricing.delete_tier', product_id=product.id, tier_id=tier.id) }}"
+                                    method="POST"
+                                    onsubmit="return confirm('Delete the {{ tier.tier_name }} tier? Any outlet overrides for this tier will also be removed.')">
+                                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                    <button type="submit"
+                                        class="text-xs px-3 py-1.5 text-red-700 bg-red-50 rounded-lg hover:bg-red-100">
+                                        <i data-lucide="trash-2" class="w-3.5 h-3.5 inline-block mr-1"></i>Delete
+                                    </button>
+                                </form>
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <div class="py-16 text-center text-sm text-gray-400 italic">
+            <i data-lucide="tag" class="w-10 h-10 mx-auto mb-3 text-gray-300"></i>
+            No price tiers configured for this product yet. Add your first tier below.
+        </div>
+        {% endif %}
+    </div>
+
+    <!-- Add Tier Form -->
+    <div class="bg-white rounded-xl border border-gray-200 shadow-sm p-6">
+        <h3 class="font-semibold text-gray-900 mb-4">
+            <i data-lucide="plus-circle" class="w-4 h-4 inline-block mr-2 text-indigo-600"></i>Add New Price Tier
+        </h3>
+        <form action="{{ url_for('pricing.create_tier', product_id=product.id) }}" method="POST">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                <!-- Tier Name -->
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Tier Name <span
+                            class="text-red-500">*</span></label>
+                    <select name="tier_name" required
+                        class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500">
+                        {% for name in valid_tier_names %}
+                        <option value="{{ name }}">{{ name | capitalize }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <!-- Min Qty -->
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Min Qty <span
+                            class="text-red-500">*</span></label>
+                    <input type="number" name="min_qty" min="1" required placeholder="e.g. 1"
+                        class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500">
+                </div>
+                <!-- Max Qty -->
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Max Qty
+                        <span class="text-gray-400 text-xs">(blank = unlimited)</span>
+                    </label>
+                    <input type="number" name="max_qty" min="1" placeholder="e.g. 19"
+                        class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500">
+                </div>
+                <!-- Price -->
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Price (₦) <span
+                            class="text-red-500">*</span></label>
+                    <input type="number" name="price" min="0" step="0.01" required placeholder="e.g. 1500.00"
+                        class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500">
+                </div>
+            </div>
+            <div class="mt-4 flex justify-end">
+                <button type="submit"
+                    class="px-5 py-2 bg-indigo-600 text-white text-sm font-medium rounded-lg hover:bg-indigo-700 transition-colors">
+                    <i data-lucide="plus" class="w-4 h-4 inline-block mr-1"></i>Add Tier
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Edit Tier Modal -->
+<div id="editTierModal" class="fixed inset-0 z-50 hidden flex items-center justify-center bg-gray-900/50">
+    <div class="bg-white rounded-xl shadow-xl p-6 w-full max-w-lg mx-4">
+        <div class="flex items-center justify-between mb-4">
+            <h3 class="font-semibold text-gray-900">Edit Price Tier</h3>
+            <button onclick="closeEditModal()" class="text-gray-400 hover:text-gray-600">
+                <i data-lucide="x" class="w-5 h-5"></i>
+            </button>
+        </div>
+        <form id="editTierForm" method="POST">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <div class="grid grid-cols-2 gap-4">
+                <div class="col-span-2">
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Tier Name</label>
+                    <select id="editTierName" name="tier_name" required
+                        class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500">
+                        {% for name in valid_tier_names %}
+                        <option value="{{ name }}">{{ name | capitalize }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Min Qty</label>
+                    <input type="number" id="editMinQty" name="min_qty" min="1" required
+                        class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Max Qty <span
+                            class="text-gray-400 text-xs">(blank=∞)</span></label>
+                    <input type="number" id="editMaxQty" name="max_qty" min="1"
+                        class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500">
+                </div>
+                <div class="col-span-2">
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Price (₦)</label>
+                    <input type="number" id="editPrice" name="price" min="0" step="0.01" required
+                        class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500">
+                </div>
+            </div>
+            <div class="mt-5 flex justify-end gap-3">
+                <button type="button" onclick="closeEditModal()"
+                    class="px-4 py-2 border border-gray-300 text-gray-700 text-sm rounded-lg hover:bg-gray-50">Cancel</button>
+                <button type="submit"
+                    class="px-4 py-2 bg-indigo-600 text-white text-sm rounded-lg hover:bg-indigo-700">Save
+                    Changes</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+    function openEditModal(btn) {
+        const tierId = btn.dataset.tierId;
+        const tierName = btn.dataset.tierName;
+        const minQty = btn.dataset.minQty;
+        const maxQty = btn.dataset.maxQty;
+        const price = btn.dataset.price;
+        document.getElementById('editTierForm').action = `/admin/pricing/product/{{ product.id }}/tiers/${tierId}/edit`;
+        document.getElementById('editTierName').value = tierName;
+        document.getElementById('editMinQty').value = minQty;
+        document.getElementById('editMaxQty').value = maxQty || '';
+        document.getElementById('editPrice').value = price;
+        document.getElementById('editTierModal').classList.remove('hidden');
+    }
+    function closeEditModal() {
+        document.getElementById('editTierModal').classList.add('hidden');
+    }
+</script>
+{% endblock %}

@@ -1,0 +1,149 @@
+{% extends "base.html" %}
+
+{% block title %}Adjust Inventory - {{ app_name }}{% endblock %}
+{% block header_title %}Adjust Stock: {{ product.sku }}{% endblock %}
+
+{% block content %}
+<div class="max-w-xl mx-auto">
+    <!-- Breadcrumb -->
+    <nav class="flex mb-4" aria-label="Breadcrumb">
+        <ol class="inline-flex items-center space-x-1 md:space-x-3">
+            <li class="inline-flex items-center">
+                <a href="{{ url_for('products.index') }}"
+                    class="inline-flex items-center text-sm font-medium text-gray-500 hover:text-gray-900">
+                    <i data-lucide="package" class="w-4 h-4 mr-2"></i>
+                    Products
+                </a>
+            </li>
+            <li class="inline-flex items-center">
+                <i data-lucide="chevron-right" class="w-4 h-4 text-gray-400"></i>
+                <a href="{{ url_for('products.detail', id=product.id) }}"
+                    class="ml-1 inline-flex items-center text-sm font-medium text-gray-500 hover:text-gray-900 md:ml-2">
+                    {{ product.sku }}
+                </a>
+            </li>
+            <li aria-current="page">
+                <div class="flex items-center">
+                    <i data-lucide="chevron-right" class="w-4 h-4 text-gray-400"></i>
+                    <span class="ml-1 text-sm font-medium text-gray-400 md:ml-2">Adjust</span>
+                </div>
+            </li>
+        </ol>
+    </nav>
+
+    <div class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+        <div class="p-6 border-b border-gray-100 bg-gray-50">
+            <h2 class="text-lg font-bold text-gray-900">Warehouse Inventory Adjustment</h2>
+            <div class="mt-2 flex items-center justify-between">
+                <span class="text-sm text-gray-500">Current Stock Level:</span>
+                <span class="text-xl font-bold text-gray-900">{{ current_stock }} {{ product.unit }}s</span>
+            </div>
+        </div>
+
+        <form method="POST" class="p-6 space-y-6">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <!-- Adjustment Type -->
+            <div>
+                <label for="adjustment_type" class="block text-sm font-medium text-gray-700 mb-1">Adjustment Type <span
+                        class="text-red-500">*</span></label>
+                <select name="adjustment_type" id="adjustment_type" required
+                    class="block w-full rounded-lg border-gray-300 shadow-sm focus:border-primary focus:ring-primary sm:text-sm h-10">
+                    <option value="">Select Reason...</option>
+                    <option value="manual_adjustment">Manual Adjustment</option>
+                    <option value="received_stock">Received New Stock</option>
+                    <option value="correction">Inventory Correction</option>
+                    <option value="damaged">Damaged Goods</option>
+                    <option value="theft">Theft / Loss</option>
+                    <option value="found">Found Item</option>
+                </select>
+            </div>
+
+            <!-- Quantity Change -->
+            <div>
+                <label for="quantity_change" class="block text-sm font-medium text-gray-700 mb-1">Quantity Change <span
+                        class="text-red-500">*</span></label>
+                <input type="number" name="quantity_change" id="quantity_change" required
+                    class="flex-1 block w-full rounded-lg border-gray-300 focus:border-primary focus:ring-primary sm:text-sm h-10"
+                    placeholder="+10 or -5">
+                <p class="mt-1 text-xs text-gray-500">Use positive numbers to add stock, negative to remove.</p>
+            </div>
+
+            <!-- Preview Box -->
+            <div
+                class="bg-indigo-50 p-4 rounded-lg border border-indigo-100 flex justify-between items-center transition-all">
+                <span class="text-sm font-medium text-indigo-900">New Stock Level:</span>
+                <span class="text-lg font-bold text-indigo-700" id="new-stock-display">{{ current_stock }}</span>
+            </div>
+            <p id="error-msg" class="text-sm text-red-600 font-medium hidden">Error: Resulting stock cannot be negative.
+            </p>
+
+            <!-- Metadata -->
+            <div>
+                <label for="reason" class="block text-sm font-medium text-gray-700 mb-1">Reason / Note <span
+                        class="text-red-500">*</span></label>
+                <textarea name="reason" id="reason" rows="2" required minlength="10"
+                    class="block w-full rounded-lg border-gray-300 shadow-sm focus:border-primary focus:ring-primary sm:text-sm"
+                    placeholder="Provide details for audit trail..."></textarea>
+            </div>
+
+            <div>
+                <label for="reference_number" class="block text-sm font-medium text-gray-700 mb-1">Reference Number
+                    (Optional)</label>
+                <input type="text" name="reference_number" id="reference_number"
+                    class="block w-full rounded-lg border-gray-300 shadow-sm focus:border-primary focus:ring-primary sm:text-sm h-10"
+                    placeholder="PO-123 or INV-456">
+            </div>
+
+            <div class="pt-4 flex items-center justify-end space-x-4">
+                <a href="{{ url_for('products.detail', id=product.id) }}"
+                    class="px-4 py-2 border border-gray-300 rounded-lg shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none transition-colors">
+                    Cancel
+                </a>
+                <button type="submit" id="submit-btn"
+                    class="px-6 py-2 border border-transparent rounded-lg shadow-sm text-sm font-medium text-white bg-primary hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary transition-all">
+                    Apply Adjustment
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        // Safely inject Jinja variable
+        const currentStock = {{ current_stock | int
+    }};
+
+    const input = document.getElementById('quantity_change');
+    const display = document.getElementById('new-stock-display');
+    const errorMsg = document.getElementById('error-msg');
+    const submitBtn = document.getElementById('submit-btn');
+
+    function updatePreview() {
+        const change = parseInt(input.value, 10) || 0;
+        const newStock = currentStock + change;
+
+        display.textContent = newStock;
+
+        if (newStock < 0) {
+            display.classList.add('text-red-700');
+            display.classList.remove('text-indigo-700');
+            errorMsg.classList.remove('hidden');
+            submitBtn.disabled = true;
+            submitBtn.classList.add('opacity-50', 'cursor-not-allowed');
+        } else {
+            display.classList.remove('text-red-700');
+            display.classList.add('text-indigo-700');
+            errorMsg.classList.add('hidden');
+            submitBtn.disabled = false;
+            submitBtn.classList.remove('opacity-50', 'cursor-not-allowed');
+        }
+    }
+
+    input.addEventListener('input', updatePreview);
+});
+</script>
+
+{% endblock %}

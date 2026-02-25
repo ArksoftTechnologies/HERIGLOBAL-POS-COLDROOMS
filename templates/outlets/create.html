@@ -1,0 +1,76 @@
+{% extends "base.html" %}
+
+{% block title %}Create Outlet - {{ app_name }}{% endblock %}
+
+{% block content %}
+<div class="container mx-auto px-4 py-8">
+    <div class="max-w-2xl mx-auto bg-white rounded-lg shadow-md overflow-hidden">
+        <div class="bg-indigo-600 px-6 py-4">
+            <h2 class="text-xl font-bold text-white">Create New Outlet</h2>
+        </div>
+
+        <form action="{{ url_for('outlets.create_outlet') }}" method="POST" class="p-6">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                <div>
+                    <label for="name" class="block text-sm font-medium text-gray-700 mb-1">Outlet Name</label>
+                    <input type="text" name="name" id="name" required minlength="3"
+                        class="w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
+                </div>
+                <div>
+                    <label for="code" class="block text-sm font-medium text-gray-700 mb-1">Outlet Code</label>
+                    <input type="text" name="code" id="code" required minlength="2" placeholder="e.g. LAX01"
+                        class="w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 uppercase">
+                </div>
+            </div>
+
+            <div class="mb-4">
+                <label for="address" class="block text-sm font-medium text-gray-700 mb-1">Address</label>
+                <input type="text" name="address" id="address"
+                    class="w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                <div>
+                    <label for="city" class="block text-sm font-medium text-gray-700 mb-1">City</label>
+                    <input type="text" name="city" id="city"
+                        class="w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
+                </div>
+                <div>
+                    <label for="state" class="block text-sm font-medium text-gray-700 mb-1">State</label>
+                    <input type="text" name="state" id="state"
+                        class="w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
+                </div>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+                <div>
+                    <label for="phone" class="block text-sm font-medium text-gray-700 mb-1">Phone</label>
+                    <input type="tel" name="phone" id="phone"
+                        class="w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
+                </div>
+                <div>
+                    <label for="email" class="block text-sm font-medium text-gray-700 mb-1">Email</label>
+                    <input type="email" name="email" id="email"
+                        class="w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
+                </div>
+            </div>
+
+            <div class="mb-6">
+                <label for="manager_name" class="block text-sm font-medium text-gray-700 mb-1">Manager Name</label>
+                <input type="text" name="manager_name" id="manager_name"
+                    class="w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
+            </div>
+
+            <div class="flex items-center justify-end border-t pt-4">
+                <a href="{{ url_for('outlets.index') }}" class="text-gray-600 hover:text-gray-900 mr-4">Cancel</a>
+                <button type="submit"
+                    class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 px-6 rounded focus:outline-none focus:shadow-outline">
+                    Create Outlet
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}

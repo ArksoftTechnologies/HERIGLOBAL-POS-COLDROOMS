@@ -1,0 +1,187 @@
+{% extends "base.html" %}
+{% block title %}{{ outlet.name }} Prices — {{ app_name }}{% endblock %}
+{% block header_title %}Outlet Price Overrides{% endblock %}
+
+{% block content %}
+<div class="space-y-6">
+
+    <!-- Breadcrumb -->
+    <nav class="flex text-sm text-gray-500">
+        <a href="{{ url_for('pricing.index') }}" class="hover:text-gray-900">Pricing</a>
+        <span class="mx-2">/</span>
+        <a href="{{ url_for('pricing.outlets_index') }}" class="hover:text-gray-900">Outlet Overrides</a>
+        <span class="mx-2">/</span>
+        <span class="text-gray-800 font-medium">{{ outlet.name }}</span>
+    </nav>
+
+    <!-- Header -->
+    <div class="bg-white rounded-xl border border-gray-200 shadow-sm p-6">
+        <div class="flex items-start gap-4">
+            <div class="w-12 h-12 rounded-xl bg-indigo-50 flex items-center justify-center">
+                <i data-lucide="{{ 'warehouse' if outlet.is_warehouse else 'store' }}"
+                    class="w-6 h-6 text-indigo-600"></i>
+            </div>
+            <div>
+                <h2 class="text-xl font-bold text-gray-900">{{ outlet.name }}</h2>
+                <p class="text-sm text-gray-500 mt-0.5">
+                    Code: <span class="font-mono">{{ outlet.code }}</span>
+                    {% if outlet.city %}&bull; {{ outlet.city }}{% endif %}
+                </p>
+                <p class="text-xs text-blue-600 mt-1">
+                    Setting an outlet price override will make this outlet use a different price from the global tier
+                    price.
+                    Delete the override to revert to the global tier price.
+                </p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Search -->
+    <div class="bg-white rounded-xl border border-gray-200 shadow-sm p-4">
+        <form method="GET" class="flex gap-3">
+            <input type="text" name="search" value="{{ search }}" placeholder="Search products..."
+                class="flex-1 border border-gray-300 rounded-lg px-4 py-2 text-sm focus:ring-2 focus:ring-indigo-500">
+            <button type="submit"
+                class="px-4 py-2 bg-indigo-600 text-white text-sm rounded-lg hover:bg-indigo-700">Search</button>
+            {% if search %}
+            <a href="{{ url_for('pricing.outlet_prices', outlet_id=outlet.id) }}"
+                class="px-4 py-2 border border-gray-300 text-gray-700 text-sm rounded-lg hover:bg-gray-50">Clear</a>
+            {% endif %}
+        </form>
+    </div>
+
+    <!-- Products & Overrides -->
+    <div class="space-y-4">
+        {% for row in rows %}
+        <div class="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
+            <!-- Product header -->
+            <div class="px-6 py-4 bg-gray-50 border-b border-gray-100 flex items-center justify-between">
+                <div>
+                    <span class="font-semibold text-gray-900">{{ row.product.name }}</span>
+                    <span class="ml-2 text-xs font-mono text-gray-400">{{ row.product.sku }}</span>
+                </div>
+                <span class="text-xs text-gray-500">Base: ₦{{ "{:,.2f}".format(row.product.selling_price) }}</span>
+            </div>
+
+            <div class="p-4 space-y-3">
+                {% if row.tiers %}
+                <!-- Per-tier overrides -->
+                {% for tier_row in row.tiers %}
+                <div
+                    class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3 rounded-lg border border-gray-100 hover:bg-gray-50">
+                    <div class="flex items-center gap-3">
+                        <span class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold
+                            {% if tier_row.tier.tier_name == 'consumer' %}bg-orange-100 text-orange-800
+                            {% elif tier_row.tier.tier_name == 'retail' %}bg-blue-100 text-blue-800
+                            {% elif tier_row.tier.tier_name == 'wholesale' %}bg-purple-100 text-purple-800
+                            {% else %}bg-gray-100 text-gray-700{% endif %}">
+                            {{ tier_row.tier.tier_name | capitalize }}
+                        </span>
+                        <span class="text-xs text-gray-500">
+                            Qty {{ tier_row.tier.min_qty }}–{{ tier_row.tier.max_qty or '∞' }}
+                        </span>
+                        <span class="text-sm text-gray-700">Global: <strong>₦{{ "{:,.2f}".format(tier_row.tier.price)
+                                }}</strong></span>
+                        {% if tier_row.override %}
+                        <span class="text-sm text-indigo-700">→ Override: <strong>₦{{
+                                "{:,.2f}".format(tier_row.override.price) }}</strong></span>
+                        {% endif %}
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <!-- Set/Update Override Form -->
+                        <form
+                            action="{{ url_for('pricing.set_outlet_price', outlet_id=outlet.id, product_id=row.product.id) }}"
+                            method="POST" class="flex items-center gap-2">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                            <input type="hidden" name="tier_name" value="{{ tier_row.tier.tier_name }}">
+                            <input type="number" name="price" min="0" step="0.01"
+                                value="{{ tier_row.override.price if tier_row.override else tier_row.tier.price }}"
+                                class="w-32 border border-gray-300 rounded-lg px-2 py-1.5 text-sm focus:ring-2 focus:ring-indigo-500"
+                                placeholder="Override price">
+                            <button type="submit"
+                                class="px-3 py-1.5 bg-indigo-600 text-white text-xs rounded-lg hover:bg-indigo-700">
+                                {{ 'Update' if tier_row.override else 'Set' }}
+                            </button>
+                        </form>
+                        {% if tier_row.override %}
+                        <form
+                            action="{{ url_for('pricing.delete_outlet_price', outlet_id=outlet.id, product_id=row.product.id, override_id=tier_row.override.id) }}"
+                            method="POST" onsubmit="return confirm('Remove this outlet price override?')">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                            <button type="submit"
+                                class="px-2 py-1.5 text-red-600 bg-red-50 rounded-lg hover:bg-red-100 text-xs">
+                                <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
+                            </button>
+                        </form>
+                        {% endif %}
+                    </div>
+                </div>
+                {% endfor %}
+                {% else %}
+                <!-- No global tiers: offer 'default' override (overrides base selling_price) -->
+                <div
+                    class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3 rounded-lg border border-dashed border-gray-200 bg-gray-50">
+                    <div class="text-sm text-gray-500">
+                        <i data-lucide="info" class="w-4 h-4 inline-block mr-1 text-gray-400"></i>
+                        No global tiers configured. You can override the base price for this outlet only.
+                        {% if row.default_override %}
+                        <span class="ml-2 text-indigo-700 font-medium">Current override: ₦{{
+                            "{:,.2f}".format(row.default_override.price) }}</span>
+                        {% endif %}
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <form
+                            action="{{ url_for('pricing.set_outlet_price', outlet_id=outlet.id, product_id=row.product.id) }}"
+                            method="POST" class="flex items-center gap-2">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                            <input type="hidden" name="tier_name" value="default">
+                            <input type="number" name="price" min="0" step="0.01"
+                                value="{{ row.default_override.price if row.default_override else row.product.selling_price }}"
+                                class="w-32 border border-gray-300 rounded-lg px-2 py-1.5 text-sm">
+                            <button type="submit"
+                                class="px-3 py-1.5 bg-indigo-600 text-white text-xs rounded-lg hover:bg-indigo-700">
+                                {{ 'Update' if row.default_override else 'Set Override' }}
+                            </button>
+                        </form>
+                        {% if row.default_override %}
+                        <form
+                            action="{{ url_for('pricing.delete_outlet_price', outlet_id=outlet.id, product_id=row.product.id, override_id=row.default_override.id) }}"
+                            method="POST" onsubmit="return confirm('Remove this outlet price override?')">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                            <button type="submit"
+                                class="px-2 py-1.5 text-red-600 bg-red-50 rounded-lg hover:bg-red-100 text-xs">
+                                <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
+                            </button>
+                        </form>
+                        {% endif %}
+                    </div>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+        {% else %}
+        <div class="bg-white rounded-xl border border-gray-200 p-10 text-center text-sm text-gray-400 italic">
+            No products found{% if search %} matching "{{ search }}"{% endif %}.
+        </div>
+        {% endfor %}
+    </div>
+
+    <!-- Pagination -->
+    {% if pagination.pages > 1 %}
+    <div class="flex items-center justify-between text-sm text-gray-500">
+        <span>Page {{ pagination.page }} of {{ pagination.pages }}</span>
+        <div class="flex gap-2">
+            {% if pagination.has_prev %}
+            <a href="{{ url_for('pricing.outlet_prices', outlet_id=outlet.id, page=pagination.prev_num, search=search) }}"
+                class="px-3 py-1 border border-gray-300 rounded hover:bg-gray-50">&laquo; Prev</a>
+            {% endif %}
+            {% if pagination.has_next %}
+            <a href="{{ url_for('pricing.outlet_prices', outlet_id=outlet.id, page=pagination.next_num, search=search) }}"
+                class="px-3 py-1 border border-gray-300 rounded hover:bg-gray-50">Next &raquo;</a>
+            {% endif %}
+        </div>
+    </div>
+    {% endif %}
+
+</div>
+{% endblock %}

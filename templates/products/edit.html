@@ -1,0 +1,204 @@
+{% extends "base.html" %}
+
+{% block title %}Edit Product - {{ app_name }}{% endblock %}
+{% block header_title %}Edit: {{ product.name }}{% endblock %}
+
+{% block content %}
+<div class="max-w-4xl mx-auto">
+    <!-- Breadcrumb -->
+    <nav class="flex mb-4" aria-label="Breadcrumb">
+        <ol class="inline-flex items-center space-x-1 md:space-x-3">
+            <li class="inline-flex items-center">
+                <a href="{{ url_for('products.index') }}"
+                    class="inline-flex items-center text-sm font-medium text-gray-500 hover:text-gray-900">
+                    <i data-lucide="package" class="w-4 h-4 mr-2"></i>
+                    Products
+                </a>
+            </li>
+            <li>
+                <div class="flex items-center">
+                    <i data-lucide="chevron-right" class="w-4 h-4 text-gray-400"></i>
+                    <a href="{{ url_for('products.detail', id=product.id) }}"
+                        class="ml-1 text-sm font-medium text-gray-500 hover:text-gray-900 md:ml-2">{{ product.sku }}</a>
+                </div>
+            </li>
+            <li aria-current="page">
+                <div class="flex items-center">
+                    <i data-lucide="chevron-right" class="w-4 h-4 text-gray-400"></i>
+                    <span class="ml-1 text-sm font-medium text-gray-400 md:ml-2">Edit</span>
+                </div>
+            </li>
+        </ol>
+    </nav>
+
+    <form method="POST" class="space-y-6">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <!-- Basic Information -->
+            <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6 md:col-span-1">
+                <h3 class="text-lg font-medium leading-6 text-gray-900 mb-4">Basic Information</h3>
+
+                <div class="space-y-4">
+                    <div>
+                        <label for="name" class="block text-sm font-medium text-gray-700 mb-1">Product Name <span
+                                class="text-red-500">*</span></label>
+                        <input type="text" name="name" id="name" required value="{{ product.name }}"
+                            class="block w-full rounded-lg border-gray-300 shadow-sm focus:border-primary focus:ring-primary sm:text-sm h-10">
+                    </div>
+
+                    <div>
+                        <label for="sku" class="block text-sm font-medium text-gray-700 mb-1">SKU</label>
+                        <input type="text" name="sku" id="sku" value="{{ product.sku }}" disabled
+                            class="block w-full rounded-lg border-gray-300 bg-gray-100 text-gray-500 shadow-sm sm:text-sm h-10 cursor-not-allowed">
+                        <p class="mt-1 text-xs text-gray-500">SKU cannot be changed.</p>
+                    </div>
+
+                    <div>
+                        <label for="category_id" class="block text-sm font-medium text-gray-700 mb-1">Category <span
+                                class="text-red-500">*</span></label>
+                        <select name="category_id" id="category_id" required
+                            class="block w-full rounded-lg border-gray-300 shadow-sm focus:border-primary focus:ring-primary sm:text-sm h-10">
+                            {% for category in categories %}
+                            <option value="{{ category.id }}" {% if product.category_id==category.id %}selected{% endif
+                                %}>{{ category.name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <div>
+                        <label for="unit" class="block text-sm font-medium text-gray-700 mb-1">Unit of Measure</label>
+                        <select name="unit" id="unit"
+                            class="block w-full rounded-lg border-gray-300 shadow-sm focus:border-primary focus:ring-primary sm:text-sm h-10">
+                            <option value="piece" {% if product.unit=='piece' %}selected{% endif %}>Piece</option>
+                            <option value="box" {% if product.unit=='box' %}selected{% endif %}>Box</option>
+                            <option value="carton" {% if product.unit=='carton' %}selected{% endif %}>Carton</option>
+                            <option value="kg" {% if product.unit=='kg' %}selected{% endif %}>Kilogram (kg)</option>
+                            <option value="liter" {% if product.unit=='liter' %}selected{% endif %}>Liter (L)</option>
+                            <option value="pack" {% if product.unit=='pack' %}selected{% endif %}>Pack</option>
+                            <option value="dozen" {% if product.unit=='dozen' %}selected{% endif %}>Dozen</option>
+                        </select>
+                    </div>
+
+                    <div>
+                        <label for="description"
+                            class="block text-sm font-medium text-gray-700 mb-1">Description</label>
+                        <textarea name="description" id="description" rows="3"
+                            class="block w-full rounded-lg border-gray-300 shadow-sm focus:border-primary focus:ring-primary sm:text-sm">{{ product.description or '' }}</textarea>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Pricing & Inventory -->
+            <div class="space-y-6 md:col-span-1">
+                <!-- Pricing Card -->
+                <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+                    <h3 class="text-lg font-medium leading-6 text-gray-900 mb-4">Pricing</h3>
+
+                    <div class="space-y-4">
+                        <div>
+                            <label for="cost_price" class="block text-sm font-medium text-gray-700 mb-1">Cost Price (₦)
+                                <span class="text-red-500">*</span></label>
+                            <input type="number" name="cost_price" id="cost_price" step="0.01" min="0" required
+                                value="{{ product.cost_price }}"
+                                class="block w-full rounded-lg border-gray-300 shadow-sm focus:border-primary focus:ring-primary sm:text-sm h-10">
+                        </div>
+
+                        <div>
+                            <label for="selling_price" class="block text-sm font-medium text-gray-700 mb-1">Selling
+                                Price (₦) <span class="text-red-500">*</span></label>
+                            <input type="number" name="selling_price" id="selling_price" step="0.01" min="0" required
+                                value="{{ product.selling_price }}"
+                                class="block w-full rounded-lg border-gray-300 shadow-sm focus:border-primary focus:ring-primary sm:text-sm h-10">
+                        </div>
+
+                        <!-- Margin Calc -->
+                        <div class="bg-gray-50 p-3 rounded-lg flex justify-between items-center">
+                            <span class="text-sm text-gray-600">Profit Margin:</span>
+                            <span id="margin-display" class="font-bold text-gray-900">0.0%</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Inventory Settings -->
+                <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+                    <h3 class="text-lg font-medium leading-6 text-gray-900 mb-4">Inventory Settings</h3>
+
+                    <div class="space-y-4">
+                        <div>
+                            <label for="reorder_level" class="block text-sm font-medium text-gray-700 mb-1">Reorder
+                                Alert Level</label>
+                            <input type="number" name="reorder_level" id="reorder_level" min="0"
+                                value="{{ product.reorder_level }}"
+                                class="block w-full rounded-lg border-gray-300 shadow-sm focus:border-primary focus:ring-primary sm:text-sm h-10">
+                            <p class="mt-1 text-xs text-gray-500">Alert when stock drops below this level.</p>
+                        </div>
+                    </div>
+
+                    <div class="mt-4 bg-blue-50 p-3 rounded-lg">
+                        <p class="text-xs text-blue-800">
+                            <i data-lucide="info" class="w-3 h-3 inline mr-1"></i>
+                            To update stock quantities, use the "Adjust Stock" button on the <a
+                                href="{{ url_for('products.detail', id=product.id) }}"
+                                class="underline font-medium">Product Detail</a> page.
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Form Actions -->
+        <div class="flex items-center justify-end space-x-4 pt-4 border-t border-gray-200">
+            <a href="{{ url_for('products.detail', id=product.id) }}"
+                class="px-4 py-2 border border-gray-300 rounded-lg shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none transition-colors">
+                Cancel
+            </a>
+            <button type="submit"
+                class="px-6 py-2 border border-transparent rounded-lg shadow-sm text-sm font-medium text-white bg-primary hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary transition-all">
+                Update Product
+            </button>
+        </div>
+    </form>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        const costInput = document.getElementById('cost_price');
+        const sellingInput = document.getElementById('selling_price');
+        const marginDisplay = document.getElementById('margin-display');
+
+        function calculateMargin() {
+            const cost = parseFloat(costInput.value) || 0;
+            const selling = parseFloat(sellingInput.value) || 0;
+
+            if (cost > 0) {
+                const margin = ((selling - cost) / cost) * 100;
+                marginDisplay.textContent = margin.toFixed(1) + '%';
+
+                if (margin < 0) {
+                    marginDisplay.classList.remove('text-green-600', 'text-gray-900');
+                    marginDisplay.classList.add('text-red-600');
+                    marginDisplay.textContent += ' (Loss)';
+                } else if (margin < 20) {
+                    marginDisplay.classList.remove('text-green-600', 'text-red-600');
+                    marginDisplay.classList.add('text-yellow-600');
+                } else {
+                    marginDisplay.classList.remove('text-red-600', 'text-yellow-600');
+                    marginDisplay.classList.add('text-green-600');
+                }
+            } else {
+                marginDisplay.textContent = 'N/A';
+                marginDisplay.classList.remove('text-red-600', 'text-green-600', 'text-yellow-600');
+                marginDisplay.classList.add('text-gray-900');
+            }
+        }
+
+        // Init logic
+        calculateMargin();
+
+        costInput.addEventListener('input', calculateMargin);
+        sellingInput.addEventListener('input', calculateMargin);
+    });
+</script>
+{% endblock %}

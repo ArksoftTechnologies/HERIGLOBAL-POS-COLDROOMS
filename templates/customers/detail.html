@@ -1,0 +1,360 @@
+{% extends "base.html" %}
+
+{% block title %}Customer Profile - {{ app_name }}{% endblock %}
+{% block header_title %}Customer Profile{% endblock %}
+
+{% block content %}
+<div class="space-y-6">
+    <!-- Header Card -->
+    <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+        <div class="flex flex-col md:flex-row md:items-center justify-between">
+            <div class="flex items-center space-x-4">
+                <div
+                    class="w-16 h-16 rounded-full bg-indigo-100 flex items-center justify-center text-primary text-xl font-bold">
+                    {{ customer.first_name[0] }}{{ customer.last_name[0] }}
+                </div>
+                <div>
+                    <div class="flex items-center space-x-2">
+                        <h1 class="text-2xl font-bold text-gray-900">{{ customer.full_name }}</h1>
+                        {% if customer.is_walk_in %}
+                        <span
+                            class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-200 text-gray-800">
+                            Walk-In Customer
+                        </span>
+                        {% endif %}
+                        {% if customer.is_active %}
+                        <span
+                            class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                            Active
+                        </span>
+                        {% else %}
+                        <span
+                            class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">
+                            Inactive
+                        </span>
+                        {% endif %}
+                    </div>
+                    <p class="text-sm text-gray-500 font-mono mt-1">{{ customer.customer_number }}</p>
+                </div>
+            </div>
+
+            <div class="mt-4 md:mt-0 flex flex-wrap gap-2">
+                {% if not customer.is_walk_in %}
+                <a href="{{ url_for('customers.ledger', id=customer.id) }}"
+                    class="inline-flex items-center px-4 py-2 border border-indigo-300 shadow-sm text-sm font-medium rounded-lg text-indigo-700 bg-indigo-50 hover:bg-indigo-100 focus:outline-none">
+                    <i data-lucide="file-text" class="w-4 h-4 mr-2"></i> View Ledger
+                </a>
+                {% endif %}
+                {% if not customer.is_walk_in and current_user.role in ['super_admin', 'general_manager',
+                'outlet_admin'] %}
+                <a href="{{ url_for('customers.edit', id=customer.id) }}"
+                    class="inline-flex items-center px-4 py-2 border border-gray-300 shadow-sm text-sm font-medium rounded-lg text-gray-700 bg-white hover:bg-gray-50 focus:outline-none">
+                    <i data-lucide="edit" class="w-4 h-4 mr-2"></i> Edit Profile
+                </a>
+
+                {% if current_user.role in ['super_admin', 'general_manager'] %}
+                <form action="{{ url_for('customers.toggle_status', id=customer.id) }}" method="POST"
+                    onsubmit="return confirm('Are you sure you want to {{ 'deactivate' if customer.is_active else 'activate' }} this customer?');">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <button type="submit"
+                        class="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-lg text-white {{ 'bg-red-600 hover:bg-red-700' if customer.is_active else 'bg-green-600 hover:bg-green-700' }} focus:outline-none">
+                        {{ 'Deactivate' if customer.is_active else 'Activate' }}
+                    </button>
+                </form>
+                {% endif %}
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <!-- Contact Info -->
+        <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6 h-full">
+            <h3 class="text-lg font-semibold text-gray-900 mb-4 flex items-center">
+                <i data-lucide="contact" class="w-5 h-5 mr-2 text-gray-400"></i> Contact Information
+            </h3>
+            <div class="space-y-4">
+                <div class="flex items-start">
+                    <div class="flex-shrink-0">
+                        <i data-lucide="phone" class="w-5 h-5 text-gray-400"></i>
+                    </div>
+                    <div class="ml-3">
+                        <p class="text-sm font-medium text-gray-900">Phone</p>
+                        <a href="tel:{{ customer.phone }}" class="text-sm text-primary hover:underline">{{
+                            customer.phone }}</a>
+                    </div>
+                </div>
+
+                <div class="flex items-start">
+                    <div class="flex-shrink-0">
+                        <i data-lucide="mail" class="w-5 h-5 text-gray-400"></i>
+                    </div>
+                    <div class="ml-3">
+                        <p class="text-sm font-medium text-gray-900">Email</p>
+                        {% if customer.email %}
+                        <a href="mailto:{{ customer.email }}" class="text-sm text-primary hover:underline">{{
+                            customer.email }}</a>
+                        {% else %}
+                        <p class="text-sm text-gray-500 italic">Not provided</p>
+                        {% endif %}
+                    </div>
+                </div>
+
+                <div class="flex items-start">
+                    <div class="flex-shrink-0">
+                        <i data-lucide="map-pin" class="w-5 h-5 text-gray-400"></i>
+                    </div>
+                    <div class="ml-3">
+                        <p class="text-sm font-medium text-gray-900">Address</p>
+                        {% if customer.address %}
+                        <p class="text-sm text-gray-600">{{ customer.address }}</p>
+                        <p class="text-sm text-gray-600">{{ customer.city }}, {{ customer.state }}</p>
+                        {% else %}
+                        <p class="text-sm text-gray-500 italic">Not provided</p>
+                        {% endif %}
+                    </div>
+                </div>
+
+                <div class="flex items-start">
+                    <div class="flex-shrink-0">
+                        <i data-lucide="store" class="w-5 h-5 text-gray-400"></i>
+                    </div>
+                    <div class="ml-3">
+                        <p class="text-sm font-medium text-gray-900">Primary Outlet</p>
+                        <p class="text-sm text-gray-600">{{ customer.primary_outlet.name if customer.primary_outlet else
+                            'Unassigned' }}</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Credit Info -->
+        <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6 h-full col-span-1 lg:col-span-2">
+            <h3 class="text-lg font-semibold text-gray-900 mb-4 flex items-center">
+                <i data-lucide="wallet" class="w-5 h-5 mr-2 text-gray-400"></i> Credit Status
+            </h3>
+
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
+                <div class="bg-gray-50 rounded-lg p-4">
+                    <p class="text-xs font-medium text-gray-500 uppercase">Credit Limit</p>
+                    <p class="text-xl font-bold text-gray-900">₦{{ "{:,.2f}".format(customer.credit_limit) }}</p>
+                </div>
+                <div class="bg-gray-50 rounded-lg p-4">
+                    <p class="text-xs font-medium text-gray-500 uppercase">Current Balance</p>
+                    <p
+                        class="text-xl font-bold {{ 'text-red-600' if customer.current_balance > 0 else 'text-gray-900' }}">
+                        ₦{{ "{:,.2f}".format(customer.current_balance) }}</p>
+                </div>
+                <div class="bg-gray-50 rounded-lg p-4">
+                    <p class="text-xs font-medium text-gray-500 uppercase">Available Credit</p>
+                    <p class="text-xl font-bold text-green-600">₦{{ "{:,.2f}".format(customer.available_credit) }}</p>
+                </div>
+            </div>
+
+            <!-- Utilization Bar -->
+            <div class="space-y-2">
+                {% set utilization = 0 %}
+                {% if customer.credit_limit > 0 %}
+                {% set utilization = (customer.current_balance / customer.credit_limit * 100) | round(1) %}
+                {% endif %}
+
+                <div class="flex justify-between text-sm">
+                    <span class="font-medium text-gray-700">Credit Utilization</span>
+                    <span
+                        class="font-medium {{ 'text-red-600' if utilization >= 90 else ('text-yellow-600' if utilization >= 70 else 'text-green-600') }}">{{
+                        utilization }}%</span>
+                </div>
+                <div class="w-full bg-gray-200 rounded-full h-4 overflow-hidden">
+                    <div class="h-4 rounded-full transition-all duration-500 {{ 'bg-red-500' if utilization >= 90 else ('bg-yellow-500' if utilization >= 70 else 'bg-green-500') }}"
+                        style="width: {{ utilization }}%"></div>
+                </div>
+                <p class="text-xs text-gray-500 text-right">
+                    {% if utilization >= 90 %}
+                    ⚠️ Critical: Near or over limit
+                    {% elif utilization >= 70 %}
+                    ⚠️ Warning: Approaching limit
+                    {% else %}
+                    Good Standing
+                    {% endif %}
+                </p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Internal Notes (Collapsible or just visible) -->
+    {% if customer.notes %}
+    <div class="bg-yellow-50 rounded-xl shadow-sm border border-yellow-200 p-6">
+        <h3 class="text-sm font-semibold text-yellow-800 mb-2 flex items-center">
+            <i data-lucide="file-text" class="w-4 h-4 mr-2"></i> Internal Notes
+        </h3>
+        <p class="text-sm text-yellow-800 whitespace-pre-wrap">{{ customer.notes }}</p>
+    </div>
+    {% endif %}
+
+    <!-- Transaction History Tabs -->
+    {% set active_tab = request.args.get('tab', 'purchases') %}
+    <div class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+        <div class="border-b border-gray-200">
+            <nav class="-mb-px flex" aria-label="Tabs">
+                <a href="{{ url_for('customers.detail', id=customer.id, tab='purchases') }}"
+                    class="whitespace-nowrap py-4 px-6 border-b-2 font-medium text-sm
+                    {{ 'border-primary text-primary' if active_tab == 'purchases' else 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300' }}">
+                    Purchase History
+                    {% if purchase_history.total > 0 %}
+                    <span class="ml-1 bg-gray-100 text-gray-600 text-xs rounded-full px-2 py-0.5">{{
+                        purchase_history.total }}</span>
+                    {% endif %}
+                </a>
+                <a href="{{ url_for('customers.detail', id=customer.id, tab='payments') }}"
+                    class="whitespace-nowrap py-4 px-6 border-b-2 font-medium text-sm
+                    {{ 'border-primary text-primary' if active_tab == 'payments' else 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300' }}">
+                    Payment History
+                    {% if payment_history.total > 0 %}
+                    <span class="ml-1 bg-gray-100 text-gray-600 text-xs rounded-full px-2 py-0.5">{{
+                        payment_history.total }}</span>
+                    {% endif %}
+                </a>
+            </nav>
+        </div>
+
+        <!-- Purchase History Tab -->
+        {% if active_tab == 'purchases' %}
+        <div>
+            {% if purchase_history.items %}
+            <div class="overflow-x-auto">
+                <table class="min-w-full divide-y divide-gray-200 text-sm">
+                    <thead class="bg-gray-50">
+                        <tr>
+                            <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                Sale #</th>
+                            <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                Date</th>
+                            <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                Items</th>
+                            <th class="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                Amount</th>
+                            <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                Payment Mode</th>
+                            <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                Status</th>
+                        </tr>
+                    </thead>
+                    <tbody class="bg-white divide-y divide-gray-100">
+                        {% for sale in purchase_history.items %}
+                        <tr class="hover:bg-gray-50">
+                            <td class="px-4 py-3 font-mono text-gray-700">{{ sale.sale_number }}</td>
+                            <td class="px-4 py-3 text-gray-600">{{ sale.sale_date.strftime('%d %b %Y') }}</td>
+                            <td class="px-4 py-3 text-gray-600">{{ sale.items | length }} item(s)</td>
+                            <td class="px-4 py-3 text-right font-semibold text-gray-900">₦{{
+                                "{:,.2f}".format(sale.total_amount) }}</td>
+                            <td class="px-4 py-3 text-gray-600">
+                                {% if sale.is_split_payment %}
+                                <span
+                                    class="px-2 py-0.5 rounded-full text-xs bg-purple-100 text-purple-800">Split</span>
+                                {% elif sale.payment_mode %}
+                                {{ sale.payment_mode.name }}
+                                {% else %}N/A{% endif %}
+                            </td>
+                            <td class="px-4 py-3">
+                                <span
+                                    class="px-2 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">Completed</span>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            <!-- Pagination -->
+            {% if purchase_history.pages > 1 %}
+            <div class="px-4 py-3 border-t border-gray-100 flex items-center justify-between text-sm text-gray-500">
+                <span>Showing {{ purchase_history.page }} of {{ purchase_history.pages }} pages ({{
+                    purchase_history.total }} records)</span>
+                <div class="flex gap-2">
+                    {% if purchase_history.has_prev %}
+                    <a href="{{ url_for('customers.detail', id=customer.id, tab='purchases', purchase_page=purchase_history.prev_num) }}"
+                        class="px-3 py-1 rounded border border-gray-300 hover:bg-gray-50">&laquo; Prev</a>
+                    {% endif %}
+                    {% if purchase_history.has_next %}
+                    <a href="{{ url_for('customers.detail', id=customer.id, tab='purchases', purchase_page=purchase_history.next_num) }}"
+                        class="px-3 py-1 rounded border border-gray-300 hover:bg-gray-50">Next &raquo;</a>
+                    {% endif %}
+                </div>
+            </div>
+            {% endif %}
+            {% else %}
+            <div class="p-8 text-center text-gray-400 italic">
+                <i data-lucide="shopping-bag" class="w-10 h-10 mx-auto mb-2 opacity-40"></i>
+                <p>No purchase history found for this customer.</p>
+            </div>
+            {% endif %}
+        </div>
+
+        <!-- Payment History Tab -->
+        {% elif active_tab == 'payments' %}
+        <div>
+            {% if payment_history.items %}
+            <div class="overflow-x-auto">
+                <table class="min-w-full divide-y divide-gray-200 text-sm">
+                    <thead class="bg-gray-50">
+                        <tr>
+                            <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                Ref #</th>
+                            <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                Date</th>
+                            <th class="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                Amount Paid</th>
+                            <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                Payment Mode</th>
+                            <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                Notes</th>
+                        </tr>
+                    </thead>
+                    <tbody class="bg-white divide-y divide-gray-100">
+                        {% for rep in payment_history.items %}
+                        <tr class="hover:bg-gray-50">
+                            <td class="px-4 py-3 font-mono text-gray-700">{{ rep.repayment_number }}</td>
+                            <td class="px-4 py-3 text-gray-600">{{ rep.repayment_date.strftime('%d %b %Y') }}</td>
+                            <td class="px-4 py-3 text-right font-semibold text-green-700">₦{{
+                                "{:,.2f}".format(rep.amount) }}</td>
+                            <td class="px-4 py-3 text-gray-600">
+                                {% if rep.is_split_payment %}
+                                <span
+                                    class="px-2 py-0.5 rounded-full text-xs bg-purple-100 text-purple-800">Split</span>
+                                {% elif rep.payment_mode %}
+                                {{ rep.payment_mode.name }}
+                                {% else %}N/A{% endif %}
+                            </td>
+                            <td class="px-4 py-3 text-gray-500 italic">{{ rep.notes or '—' }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            <!-- Pagination -->
+            {% if payment_history.pages > 1 %}
+            <div class="px-4 py-3 border-t border-gray-100 flex items-center justify-between text-sm text-gray-500">
+                <span>Showing {{ payment_history.page }} of {{ payment_history.pages }} pages ({{ payment_history.total
+                    }} records)</span>
+                <div class="flex gap-2">
+                    {% if payment_history.has_prev %}
+                    <a href="{{ url_for('customers.detail', id=customer.id, tab='payments', payment_page=payment_history.prev_num) }}"
+                        class="px-3 py-1 rounded border border-gray-300 hover:bg-gray-50">&laquo; Prev</a>
+                    {% endif %}
+                    {% if payment_history.has_next %}
+                    <a href="{{ url_for('customers.detail', id=customer.id, tab='payments', payment_page=payment_history.next_num) }}"
+                        class="px-3 py-1 rounded border border-gray-300 hover:bg-gray-50">Next &raquo;</a>
+                    {% endif %}
+                </div>
+            </div>
+            {% endif %}
+            {% else %}
+            <div class="p-8 text-center text-gray-400 italic">
+                <i data-lucide="credit-card" class="w-10 h-10 mx-auto mb-2 opacity-40"></i>
+                <p>No payment history found for this customer.</p>
+            </div>
+            {% endif %}
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

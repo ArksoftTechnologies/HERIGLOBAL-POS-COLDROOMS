@@ -1,0 +1,446 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Inventory History — {{ product.name }}</title>
+    <style>
+        /* ── Base ──────────────────────────────────────────────────────── */
+        *,
+        *::before,
+        *::after {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: 'Segoe UI', Arial, sans-serif;
+            font-size: 11px;
+            color: #1e293b;
+            background: #fff;
+            padding: 0;
+        }
+
+        /* ── Page wrapper for screen preview ──────────────────────────── */
+        .page {
+            width: 210mm;
+            min-height: 297mm;
+            margin: 20px auto;
+            background: #fff;
+            padding: 18mm 16mm 18mm 16mm;
+            box-shadow: 0 4px 24px rgba(0, 0, 0, .12);
+            border-radius: 6px;
+        }
+
+        /* ── Print overrides ───────────────────────────────────────────── */
+        @page {
+            size: A4 portrait;
+            margin: 15mm 14mm 18mm 14mm;
+
+            @bottom-center {
+                content: "Page " counter(page) " of " counter(pages);
+                font-size: 9px;
+                color: #94a3b8;
+            }
+        }
+
+        @media print {
+            body {
+                background: #fff;
+                padding: 0;
+            }
+
+            .page {
+                width: 100%;
+                margin: 0;
+                padding: 0;
+                box-shadow: none;
+                border-radius: 0;
+            }
+
+            .no-print {
+                display: none !important;
+            }
+
+            /* Avoid row breaks inside a table row */
+            tr {
+                page-break-inside: avoid;
+            }
+
+            thead {
+                display: table-header-group;
+            }
+        }
+
+        /* ── Header ────────────────────────────────────────────────────── */
+        .doc-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            padding-bottom: 14px;
+            border-bottom: 3px solid #4f46e5;
+            margin-bottom: 18px;
+        }
+
+        .company-name {
+            font-size: 22px;
+            font-weight: 800;
+            color: #4f46e5;
+            letter-spacing: -0.5px;
+        }
+
+        .company-sub {
+            font-size: 10px;
+            color: #64748b;
+            margin-top: 2px;
+            letter-spacing: 0.5px;
+            text-transform: uppercase;
+        }
+
+        .doc-meta {
+            text-align: right;
+            font-size: 9.5px;
+            color: #64748b;
+            line-height: 1.6;
+        }
+
+        .doc-meta strong {
+            color: #1e293b;
+        }
+
+        /* ── Product summary card ──────────────────────────────────────── */
+        .product-card {
+            background: #f8fafc;
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            padding: 12px 16px;
+            margin-bottom: 16px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 16px;
+        }
+
+        .product-card h1 {
+            font-size: 16px;
+            font-weight: 700;
+            color: #1e293b;
+        }
+
+        .product-card .sku {
+            display: inline-block;
+            background: #e0e7ff;
+            color: #4f46e5;
+            font-family: 'Courier New', monospace;
+            font-size: 10px;
+            padding: 2px 8px;
+            border-radius: 4px;
+            margin-top: 4px;
+        }
+
+        .product-card .stat {
+            text-align: center;
+        }
+
+        .product-card .stat-val {
+            font-size: 22px;
+            font-weight: 800;
+            color: #4f46e5;
+        }
+
+        .product-card .stat-lbl {
+            font-size: 9px;
+            color: #64748b;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        /* ── Filter summary bar ─────────────────────────────────────────── */
+        .filter-bar {
+            background: #eff6ff;
+            border: 1px solid #bfdbfe;
+            border-radius: 6px;
+            padding: 8px 14px;
+            margin-bottom: 18px;
+            font-size: 10px;
+            color: #1d4ed8;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 16px;
+        }
+
+        .filter-bar span {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+
+        .filter-bar strong {
+            color: #1e3a8a;
+        }
+
+        /* ── Table ──────────────────────────────────────────────────────── */
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 10px;
+        }
+
+        thead tr {
+            background: #4f46e5;
+            color: #fff;
+        }
+
+        thead th {
+            padding: 8px 10px;
+            text-align: left;
+            font-weight: 600;
+            font-size: 9.5px;
+            letter-spacing: 0.4px;
+            text-transform: uppercase;
+            white-space: nowrap;
+        }
+
+        thead th.right {
+            text-align: right;
+        }
+
+        tbody tr:nth-child(even) {
+            background: #f8fafc;
+        }
+
+        tbody tr:hover {
+            background: #f0f4ff;
+        }
+
+        tbody td {
+            padding: 7px 10px;
+            border-bottom: 1px solid #e2e8f0;
+            vertical-align: top;
+            color: #334155;
+        }
+
+        tbody td.right {
+            text-align: right;
+        }
+
+        tbody td.mono {
+            font-family: 'Courier New', monospace;
+            font-size: 9.5px;
+            color: #64748b;
+        }
+
+        tbody td.small {
+            font-size: 9.5px;
+            color: #64748b;
+        }
+
+        .badge {
+            display: inline-block;
+            padding: 2px 8px;
+            border-radius: 99px;
+            font-size: 9px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.3px;
+            white-space: nowrap;
+        }
+
+        .badge-adj {
+            background: #dbeafe;
+            color: #1d4ed8;
+        }
+
+        .badge-sent {
+            background: #ffedd5;
+            color: #c2410c;
+        }
+
+        .badge-recv {
+            background: #ccfbf1;
+            color: #0f766e;
+        }
+
+        .pos-change {
+            color: #16a34a;
+            font-weight: 700;
+        }
+
+        .neg-change {
+            color: #dc2626;
+            font-weight: 700;
+        }
+
+        /* ── Empty state ────────────────────────────────────────────────── */
+        .empty-row td {
+            text-align: center;
+            padding: 32px;
+            color: #94a3b8;
+            font-style: italic;
+        }
+
+        /* ── Footer ─────────────────────────────────────────────────────── */
+        .doc-footer {
+            margin-top: 30px;
+            padding-top: 12px;
+            border-top: 1px solid #e2e8f0;
+            display: flex;
+            justify-content: space-between;
+            font-size: 9px;
+            color: #94a3b8;
+        }
+
+        /* ── Print button (screen only) ─────────────────────────────────── */
+        .print-toolbar {
+            width: 210mm;
+            margin: 0 auto 12px;
+            display: flex;
+            justify-content: flex-end;
+            gap: 8px;
+        }
+
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 8px 20px;
+            border: none;
+            border-radius: 8px;
+            font-size: 13px;
+            font-weight: 600;
+            cursor: pointer;
+        }
+
+        .btn-primary {
+            background: #4f46e5;
+            color: #fff;
+        }
+
+        .btn-primary:hover {
+            background: #4338ca;
+        }
+
+        .btn-ghost {
+            background: #f1f5f9;
+            color: #475569;
+        }
+
+        .btn-ghost:hover {
+            background: #e2e8f0;
+        }
+    </style>
+</head>
+
+<body>
+
+    <!-- Print toolbar (hidden during actual print) -->
+    <div class="print-toolbar no-print">
+        <button class="btn btn-ghost" onclick="window.close()">✕ Close</button>
+        <button class="btn btn-primary" onclick="window.print()">🖨 Print / Save as PDF</button>
+    </div>
+
+    <div class="page">
+
+        <!-- Header -->
+        <div class="doc-header">
+            <div>
+                <div class="company-name">{{ app_name | upper }}</div>
+                <div class="company-sub">Point of Sale System &mdash; Inventory Report</div>
+            </div>
+            <div class="doc-meta">
+                <div><strong>Document:</strong> Inventory Movement History</div>
+                <div><strong>Generated:</strong> {{ now.strftime('%d %B %Y, %I:%M %p') }}</div>
+                <div><strong>Prepared by:</strong> {{ generated_by }}</div>
+            </div>
+        </div>
+
+        <!-- Product Card -->
+        <div class="product-card">
+            <div>
+                <h1>{{ product.name }}</h1>
+                <span class="sku">{{ product.sku }}</span>
+                <div style="margin-top:6px; font-size:10px; color:#64748b;">
+                    {{ product.category.name if product.category else 'Uncategorised' }}
+                    &nbsp;|&nbsp; Unit: {{ product.unit or 'piece' }}
+                </div>
+            </div>
+            <div class="stat">
+                <div class="stat-val">{{ history|length }}</div>
+                <div class="stat-lbl">Records</div>
+            </div>
+        </div>
+
+        <!-- Filter Summary -->
+        <div class="filter-bar">
+            <span>📍 <strong>Outlet:</strong> {{ outlet_name if outlet_name else 'All Outlets' }}</span>
+            <span>📅 <strong>From:</strong> {{ date_from if date_from else 'Beginning' }}</span>
+            <span>📅 <strong>To:</strong> {{ date_to if date_to else 'Today' }}</span>
+            <span>🔖 <strong>Type:</strong>
+                {{ 'All Transactions' if filter_type == 'all' else ('Adjustments Only' if filter_type == 'adjustment'
+                else 'Transfers Only') }}
+            </span>
+        </div>
+
+        <!-- History Table -->
+        <table>
+            <thead>
+                <tr>
+                    <th>Date</th>
+                    <th>Type</th>
+                    <th>Outlet / Route</th>
+                    <th>Reference</th>
+                    <th class="right">Change</th>
+                    <th class="right">Before</th>
+                    <th class="right">After</th>
+                    <th>Note / Reason</th>
+                    <th>By</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for row in history %}
+                <tr>
+                    <td class="small">
+                        {{ row.date.strftime('%d %b %Y') if row.date else '—' }}<br>
+                        <span style="color:#94a3b8">{{ row.date.strftime('%H:%M') if row.date else '' }}</span>
+                    </td>
+                    <td>
+                        {% if row.type == 'Adjustment' %}
+                        <span class="badge badge-adj">{{ row.subtype }}</span>
+                        {% elif row.subtype == 'Sent' %}
+                        <span class="badge badge-sent">⇡ Sent</span>
+                        {% else %}
+                        <span class="badge badge-recv">⇣ Recv</span>
+                        {% endif %}
+                    </td>
+                    <td style="max-width:110px; overflow:hidden; word-break:break-word;">{{ row.outlet }}</td>
+                    <td class="mono">{{ row.reference }}</td>
+                    <td class="right {{ 'pos-change' if row.change > 0 else 'neg-change' }}">
+                        {{ '+' if row.change > 0 else '' }}{{ row.change }}
+                    </td>
+                    <td class="right small">{{ row.before if row.before is not none else '—' }}</td>
+                    <td class="right" style="font-weight:600">{{ row.after if row.after is not none else '—' }}</td>
+                    <td style="max-width:130px; word-break:break-word; color:#475569;">{{ row.note }}</td>
+                    <td class="small">{{ row.by }}</td>
+                </tr>
+                {% else %}
+                <tr class="empty-row">
+                    <td colspan="9">No inventory records found for the selected filters.</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+
+        <!-- Footer -->
+        <div class="doc-footer">
+            <span>{{ app_name | upper }} POS System &mdash; Inventory Movement Report</span>
+            <span>{{ product.name }} ({{ product.sku }}) &mdash; {{ now.strftime('%d %b %Y') }}</span>
+            <span>This is a computer-generated document. No signature required.</span>
+        </div>
+
+    </div><!-- /.page -->
+
+</body>
+
+</html>

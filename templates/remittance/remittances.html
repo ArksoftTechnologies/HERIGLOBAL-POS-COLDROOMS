@@ -1,0 +1,134 @@
+{% extends "base.html" %}
+
+{% block title %}Remittance History{% endblock %}
+
+{% block content %}
+<div class="space-y-6">
+    <div class="flex items-center justify-between">
+        <div>
+            <h1 class="text-2xl font-bold text-gray-900">Remittance History</h1>
+            <p class="text-gray-500">History of recorded remittances to company.</p>
+        </div>
+        <a href="{{ url_for('remittance.record_remittance') }}"
+            class="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700">
+            <i data-lucide="plus" class="w-4 h-4 mr-2"></i> Record
+        </a>
+    </div>
+
+    <!-- Outlet Filter (super_admin / general_manager only) -->
+    {% if current_user.role in ['super_admin', 'general_manager'] and outlets %}
+    <div class="bg-white rounded-xl shadow-sm border border-gray-100 px-6 py-4">
+        <form method="GET" action="{{ url_for('remittance.remittances_list') }}"
+            class="flex flex-col sm:flex-row sm:items-center gap-3">
+            <label class="text-sm font-medium text-gray-700 whitespace-nowrap flex items-center gap-2">
+                <i data-lucide="building-2" class="w-4 h-4 text-gray-400"></i>
+                Filter by Outlet
+            </label>
+            <select name="outlet_id" id="outlet_id_rem" onchange="this.form.submit()" class="block w-full sm:w-64 rounded-md border-gray-300 shadow-sm text-sm
+                           focus:border-blue-500 focus:ring-blue-500 py-2 px-3 border">
+                <option value="">— All Outlets —</option>
+                {% for outlet in outlets %}
+                <option value="{{ outlet.id }}" {% if selected_outlet_id==outlet.id %}selected{% endif %}>
+                    {{ outlet.name }}
+                </option>
+                {% endfor %}
+            </select>
+            {% if selected_outlet_id %}
+            <a href="{{ url_for('remittance.remittances_list') }}"
+                class="text-sm text-gray-500 hover:text-red-600 flex items-center gap-1">
+                <i data-lucide="x-circle" class="w-4 h-4"></i> Clear
+            </a>
+            {% endif %}
+        </form>
+    </div>
+    {% endif %}
+
+    <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+        <div class="overflow-x-auto">
+            <table class="min-w-full divide-y divide-gray-200">
+                <thead class="bg-gray-50">
+                    <tr>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Reference</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date
+                        </th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Sales
+                            Rep</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Method</th>
+                        <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Amount</th>
+                        <th class="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Status</th>
+                        <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Actions</th>
+                    </tr>
+                </thead>
+                <tbody class="bg-white divide-y divide-gray-200">
+                    {% for rem in remittances.items %}
+                    <tr class="hover:bg-gray-50">
+                        <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-blue-600">
+                            <a href="{{ url_for('remittance.remittance_detail', id=rem.id) }}">{{ rem.remittance_number
+                                }}</a>
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                            {{ rem.remittance_date.strftime('%Y-%m-%d') }}
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                            {{ rem.sales_rep.first_name }} {{ rem.sales_rep.last_name }}
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 capitalize">
+                            {{ rem.remittance_method|replace('_', ' ') }}
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-right font-semibold text-gray-900">
+                            ₦{{ "{:,.2f}".format(rem.amount) }}
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap text-center">
+                            <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium 
+                                {% if rem.status == 'verified' %}bg-green-100 text-green-800
+                                {% elif rem.status == 'rejected' %}bg-red-100 text-red-800
+                                {% else %}bg-yellow-100 text-yellow-800{% endif %}">
+                                {{ rem.status|title }}
+                            </span>
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                            <a href="{{ url_for('remittance.remittance_detail', id=rem.id) }}"
+                                class="text-blue-600 hover:text-blue-900">View</a>
+                        </td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="7" class="px-6 py-12 text-center text-gray-500">
+                            No remittances found.
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Pagination -->
+        {% if remittances.pages > 1 %}
+        <div class="px-6 py-4 border-t border-gray-200">
+            <div class="flex justify-between items-center">
+                {% if remittances.has_prev %}
+                <a href="{{ url_for('remittance.remittances_list', page=remittances.prev_num, outlet_id=selected_outlet_id) }}"
+                    class="text-sm font-medium text-gray-700 hover:text-gray-900">Previous</a>
+                {% else %}
+                <span class="text-sm text-gray-400 cursor-not-allowed">Previous</span>
+                {% endif %}
+
+                <span class="text-sm text-gray-500">Page {{ remittances.page }} of {{ remittances.pages }}</span>
+
+                {% if remittances.has_next %}
+                <a href="{{ url_for('remittance.remittances_list', page=remittances.next_num, outlet_id=selected_outlet_id) }}"
+                    class="text-sm font-medium text-gray-700 hover:text-gray-900">Next</a>
+                {% else %}
+                <span class="text-sm text-gray-400 cursor-not-allowed">Next</span>
+                {% endif %}
+            </div>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

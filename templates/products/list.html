@@ -1,0 +1,251 @@
+{% extends "base.html" %}
+
+{% block title %}Products - {{ app_name }}{% endblock %}
+{% block header_title %}Product Catalog{% endblock %}
+
+{% block content %}
+<div class="space-y-6">
+    <!-- Header & Actions -->
+    <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+        <div>
+            <h1 class="text-2xl font-bold text-gray-900 font-header">Product Catalog</h1>
+            <p class="text-sm text-gray-500 mt-1">Manage standard products and warehouse inventory.</p>
+        </div>
+        <div class="flex gap-3">
+            {% if current_user.role in ['super_admin', 'general_manager'] %}
+            <a href="{{ url_for('products.categories') }}"
+                class="inline-flex items-center justify-center px-4 py-2 border border-gray-300 shadow-sm text-sm font-medium rounded-lg text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary transition-all">
+                <i data-lucide="tags" class="w-4 h-4 mr-2"></i>
+                Manage Categories
+            </a>
+            {% endif %}
+            {% if current_user.role == 'super_admin' %}
+            <a href="{{ url_for('products.create') }}"
+                class="inline-flex items-center justify-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-lg text-white bg-primary hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary transition-all">
+                <i data-lucide="plus" class="w-4 h-4 mr-2"></i>
+                Add New Product
+            </a>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Filters Section -->
+    <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-4">
+        <form method="GET" action="{{ url_for('products.index') }}"
+            class="grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
+            <!-- Search -->
+            <div class="md:col-span-1">
+                <label for="search" class="block text-xs font-medium text-gray-700 mb-1">Search Products</label>
+                <div class="relative rounded-md shadow-sm">
+                    <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                        <i data-lucide="search" class="h-4 w-4 text-gray-400"></i>
+                    </div>
+                    <input type="text" name="search" id="search" value="{{ search }}"
+                        class="focus:ring-primary focus:border-primary block w-full pl-10 sm:text-sm border-gray-300 rounded-lg h-10"
+                        placeholder="SKU, Name...">
+                </div>
+            </div>
+
+            <!-- Category Filter -->
+            <div>
+                <label for="category_id" class="block text-xs font-medium text-gray-700 mb-1">Category</label>
+                <select name="category_id" id="category_id"
+                    class="focus:ring-primary focus:border-primary block w-full sm:text-sm border-gray-300 rounded-lg h-10">
+                    <option value="">All Categories</option>
+                    {% for category in categories %}
+                    <option value="{{ category.id }}" {% if category_id==category.id %}selected{% endif %}>{{
+                        category.name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <!-- Stock Status Filter -->
+            <div>
+                <label for="stock_status" class="block text-xs font-medium text-gray-700 mb-1">Warehouse Stock</label>
+                <select name="stock_status" id="stock_status"
+                    class="focus:ring-primary focus:border-primary block w-full sm:text-sm border-gray-300 rounded-lg h-10">
+                    <option value="all" {% if stock_status=='all' %}selected{% endif %}>All Levels</option>
+                    <option value="in_stock" {% if stock_status=='in_stock' %}selected{% endif %}>In Stock</option>
+                    <option value="low_stock" {% if stock_status=='low_stock' %}selected{% endif %}>Low Stock</option>
+                    <option value="out_of_stock" {% if stock_status=='out_of_stock' %}selected{% endif %}>Out of Stock
+                    </option>
+                </select>
+            </div>
+
+            <!-- Apply Button -->
+            <div>
+                <button type="submit"
+                    class="w-full inline-flex justify-center items-center px-4 py-2 border border-gray-300 shadow-sm text-sm font-medium rounded-lg text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary h-10 transition-colors">
+                    Apply Filters
+                </button>
+            </div>
+        </form>
+    </div>
+
+    <!-- Products Table -->
+    <div class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+        <div class="overflow-x-auto">
+            <table class="min-w-full divide-y divide-gray-200">
+                <thead class="bg-gray-50">
+                    <tr>
+                        <th scope="col"
+                            class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Product Info</th>
+                        <th scope="col"
+                            class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Category</th>
+                        <th scope="col"
+                            class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Cost
+                            Price</th>
+                        <th scope="col"
+                            class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Selling Price</th>
+                        <th scope="col"
+                            class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Margin</th>
+                        <th scope="col"
+                            class="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Warehouse Stock</th>
+                        <th scope="col" class="relative px-6 py-3">
+                            <span class="sr-only">Actions</span>
+                        </th>
+                    </tr>
+                </thead>
+                <tbody class="bg-white divide-y divide-gray-200">
+                    {% if products %}
+                    {% for product in products %}
+                    {% set warehouse_inv = product.inventory_records | selectattr("outlet_id", "equalto", 1) | first %}
+                    {% set stock = warehouse_inv.quantity if warehouse_inv else 0 %}
+                    {% set margin = product.calculate_margin() %}
+
+                    <tr class="hover:bg-gray-50 transition-colors group">
+                        <td class="px-6 py-4 whitespace-nowrap">
+                            <div class="flex items-center">
+                                <div
+                                    class="flex-shrink-0 h-10 w-10 bg-gray-100 rounded-lg flex items-center justify-center text-gray-400">
+                                    <i data-lucide="package" class="h-5 w-5"></i>
+                                </div>
+                                <div class="ml-4">
+                                    <div class="text-sm font-medium text-gray-900">{{ product.name }}</div>
+                                    <div class="text-xs text-gray-500 font-mono">{{ product.sku }}</div>
+                                </div>
+                            </div>
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap">
+                            <span
+                                class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-gray-100 text-gray-800">
+                                {{ product.category.name if product.category else 'Uncategorized' }}
+                            </span>
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap text-right text-sm text-gray-500">
+                            ₦{{ "{:,.2f}".format(product.cost_price) }}
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium text-gray-900">
+                            ₦{{ "{:,.2f}".format(product.selling_price) }}
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap text-right text-sm">
+                            <span
+                                class="{{ 'text-green-600' if margin >= 20 else ('text-yellow-600' if margin > 0 else 'text-red-600') }} font-medium">
+                                {{ "{:.1f}%".format(margin) }}
+                            </span>
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap text-center">
+                            {% if stock == 0 %}
+                            <span
+                                class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">
+                                Out of Stock
+                            </span>
+                            {% elif stock <= product.reorder_level %} <span
+                                class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">
+                                Low: {{ stock }}
+                                </span>
+                                {% else %}
+                                <span
+                                    class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                                    {{ stock }}
+                                </span>
+                                {% endif %}
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                            <a href="{{ url_for('products.detail', id=product.id) }}"
+                                class="text-primary hover:text-indigo-900">View</a>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                    {% else %}
+                    <tr>
+                        <td colspan="7" class="px-6 py-12 text-center">
+                            <div class="flex flex-col items-center justify-center">
+                                <div class="rounded-full bg-gray-50 p-4 mb-4">
+                                    <i data-lucide="package-search" class="h-8 w-8 text-gray-400"></i>
+                                </div>
+                                <h3 class="text-lg font-medium text-gray-900">No products found</h3>
+                                <p class="text-gray-500 mt-1 max-w-sm">
+                                    Try adjusting your filters or search terms.
+                                </p>
+                                <a href="{{ url_for('products.index') }}"
+                                    class="mt-4 text-primary hover:underline text-sm font-semibold">Clear Filters</a>
+                            </div>
+                        </td>
+                    </tr>
+                    {% endif %}
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Pagination -->
+        {% if pagination.pages > 1 %}
+        <div class="bg-gray-50 px-4 py-3 flex items-center justify-between border-t border-gray-200 sm:px-6">
+            <div class="hidden sm:flex-1 sm:flex sm:items-center sm:justify-between">
+                <div>
+                    <p class="text-sm text-gray-700">
+                        Showing <span class="font-medium">{{ (pagination.page - 1) * pagination.per_page + 1 }}</span>
+                        to <span class="font-medium">{{ pagination.page * pagination.per_page if pagination.page *
+                            pagination.per_page < pagination.total else pagination.total }}</span> of <span
+                                    class="font-medium">{{ pagination.total }}</span> results
+                    </p>
+                </div>
+                <div>
+                    <nav class="relative z-0 inline-flex rounded-md shadow-sm -space-x-px" aria-label="Pagination">
+                        {% if pagination.has_prev %}
+                        <a href="{{ url_for('products.index', page=pagination.prev_num, search=search, category_id=category_id, stock_status=stock_status) }}"
+                            class="relative inline-flex items-center px-2 py-2 rounded-l-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50">
+                            <span class="sr-only">Previous</span>
+                            <i data-lucide="chevron-left" class="h-5 w-5"></i>
+                        </a>
+                        {% endif %}
+
+                        {% for p in pagination.iter_pages() %}
+                        {% if p %}
+                        {% if p == pagination.page %}
+                        <span
+                            class="relative inline-flex items-center px-4 py-2 border border-primary bg-indigo-50 text-sm font-medium text-primary z-10">
+                            {{ p }}
+                        </span>
+                        {% else %}
+                        <a href="{{ url_for('products.index', page=p, search=search, category_id=category_id, stock_status=stock_status) }}"
+                            class="relative inline-flex items-center px-4 py-2 border border-gray-300 bg-white text-sm font-medium text-gray-700 hover:bg-gray-50">
+                            {{ p }}
+                        </a>
+                        {% endif %}
+                        {% else %}
+                        <span
+                            class="relative inline-flex items-center px-4 py-2 border border-gray-300 bg-white text-sm font-medium text-gray-700">...</span>
+                        {% endif %}
+                        {% endfor %}
+
+                        {% if pagination.has_next %}
+                        <a href="{{ url_for('products.index', page=pagination.next_num, search=search, category_id=category_id, stock_status=stock_status) }}"
+                            class="relative inline-flex items-center px-2 py-2 rounded-r-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50">
+                            <span class="sr-only">Next</span>
+                            <i data-lucide="chevron-right" class="h-5 w-5"></i>
+                        </a>
+                        {% endif %}
+                    </nav>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

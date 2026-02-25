@@ -1,0 +1,118 @@
+{% extends "base.html" %}
+
+{% block title %}Expense Categories - {{ app_name }}{% endblock %}
+{% block header_title %}Expense Categories{% endblock %}
+
+{% block content %}
+<div class="max-w-7xl mx-auto space-y-6">
+
+    <!-- Header -->
+    <div class="flex flex-col sm:flex-row justify-between items-center gap-4">
+        <div>
+            <h1 class="text-2xl font-bold text-gray-900">Expense Categories</h1>
+            <p class="text-sm text-gray-500">Manage categories for expense classification</p>
+        </div>
+        <button onclick="document.getElementById('create-modal').showModal()"
+            class="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-lg text-white bg-primary hover:bg-primary/90 focus:outline-none">
+            <i data-lucide="plus" class="w-4 h-4 mr-2"></i> Add New Category
+        </button>
+    </div>
+
+    <!-- Success Message -->
+    {% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}
+    {% for category, message in messages %}
+    <div
+        class="mb-4 rounded-md p-4 {{ 'bg-green-50 text-green-700' if category == 'success' else 'bg-red-50 text-red-700' }}">
+        {{ message }}
+    </div>
+    {% endfor %}
+    {% endif %}
+    {% endwith %}
+
+    <!-- Categories Table -->
+    <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+        <div class="overflow-x-auto">
+            <table class="min-w-full divide-y divide-gray-200">
+                <thead class="bg-gray-50">
+                    <tr>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Name
+                        </th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Description</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Status</th>
+                        <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Actions</th>
+                    </tr>
+                </thead>
+                <tbody class="bg-white divide-y divide-gray-200">
+                    {% for category in categories %}
+                    <tr class="hover:bg-gray-50">
+                        <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                            {{ category.name }}
+                        </td>
+                        <td class="px-6 py-4 text-sm text-gray-500">
+                            {{ category.description }}
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap">
+                            <span
+                                class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium {{ 'bg-green-100 text-green-800' if category.is_active else 'bg-red-100 text-red-800' }}">
+                                {{ 'Active' if category.is_active else 'Inactive' }}
+                            </span>
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                            <form method="POST" class="inline">
+                                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                <input type="hidden" name="action" value="toggle_status">
+                                <input type="hidden" name="category_id" value="{{ category.id }}">
+                                <button type="submit" class="text-indigo-600 hover:text-indigo-900 ml-2"
+                                    onclick="return confirm('Are you sure you want to change the status of this category?')">
+                                    {{ 'Deactivate' if category.is_active else 'Activate' }}
+                                </button>
+                            </form>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- Create Modal -->
+<dialog id="create-modal" class="modal rounded-xl shadow-xl w-full max-w-lg p-0 backdrop:bg-gray-900/50">
+    <div class="bg-white">
+        <div class="px-6 py-4 border-b border-gray-100 flex justify-between items-center">
+            <h3 class="text-lg font-medium text-gray-900">Add New Category</h3>
+            <button onclick="document.getElementById('create-modal').close()" class="text-gray-400 hover:text-gray-500">
+                <i data-lucide="x" class="w-5 h-5"></i>
+            </button>
+        </div>
+        <form method="POST" class="p-6 space-y-4">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <input type="hidden" name="action" value="create">
+
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">Category Name <span
+                        class="text-red-500">*</span></label>
+                <input type="text" name="name" required
+                    class="w-full rounded-lg border-gray-300 focus:ring-primary focus:border-primary">
+            </div>
+
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">Description</label>
+                <textarea name="description" rows="3"
+                    class="w-full rounded-lg border-gray-300 focus:ring-primary focus:border-primary"></textarea>
+            </div>
+
+            <div class="flex justify-end space-x-3 mt-6">
+                <button type="button" onclick="document.getElementById('create-modal').close()"
+                    class="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50">Cancel</button>
+                <button type="submit" class="px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary/90">Create
+                    Category</button>
+            </div>
+        </form>
+    </div>
+</dialog>
+{% endblock %}

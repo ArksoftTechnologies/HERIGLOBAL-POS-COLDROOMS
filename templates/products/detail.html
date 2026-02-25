@@ -1,0 +1,383 @@
+{% extends "base.html" %}
+
+{% block title %}{{ product.name }} - {{ app_name }}{% endblock %}
+{% block header_title %}Product Details{% endblock %}
+
+{% block content %}
+<div class="space-y-6">
+    <!-- Breadcrumb -->
+    <nav class="flex" aria-label="Breadcrumb">
+        <ol class="inline-flex items-center space-x-1 md:space-x-3">
+            <li class="inline-flex items-center">
+                <a href="{{ url_for('products.index') }}"
+                    class="inline-flex items-center text-sm font-medium text-gray-500 hover:text-gray-900">
+                    <i data-lucide="package" class="w-4 h-4 mr-2"></i>
+                    Products
+                </a>
+            </li>
+            <li aria-current="page">
+                <div class="flex items-center">
+                    <i data-lucide="chevron-right" class="w-4 h-4 text-gray-400"></i>
+                    <span class="ml-1 text-sm font-medium text-gray-400 md:ml-2">{{ product.sku }}</span>
+                </div>
+            </li>
+        </ol>
+    </nav>
+
+    <!-- Header Section -->
+    <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+        <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+            <div class="flex items-start gap-4">
+                <div class="h-16 w-16 bg-gray-100 rounded-lg flex items-center justify-center text-gray-500">
+                    <i data-lucide="package" class="h-8 w-8"></i>
+                </div>
+                <div>
+                    <h1 class="text-2xl font-bold text-gray-900">{{ product.name }}</h1>
+                    <div class="flex items-center gap-3 mt-1">
+                        <span
+                            class="bg-gray-100 text-gray-700 px-2 py-0.5 rounded text-xs font-mono border border-gray-200">{{
+                            product.sku }}</span>
+                        <span class="bg-indigo-50 text-primary px-2 py-0.5 rounded-full text-xs font-medium">{{
+                            product.category.name if product.category else 'Uncategorized' }}</span>
+                        {% if product.is_active %}
+                        <span
+                            class="bg-green-100 text-green-700 px-2 py-0.5 rounded-full text-xs font-medium">Active</span>
+                        {% else %}
+                        <span
+                            class="bg-red-100 text-red-700 px-2 py-0.5 rounded-full text-xs font-medium">Inactive</span>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+
+            {% if current_user.role == 'super_admin' %}
+            <div class="flex gap-3">
+                <a href="{{ url_for('products.edit', id=product.id) }}"
+                    class="inline-flex items-center px-4 py-2 border border-gray-300 shadow-sm text-sm font-medium rounded-lg text-gray-700 bg-white hover:bg-gray-50 focus:outline-none transition-colors">
+                    <i data-lucide="edit-3" class="w-4 h-4 mr-2"></i>
+                    Edit Product
+                </a>
+                <a href="{{ url_for('products.adjust_inventory', id=product.id) }}"
+                    class="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-lg text-white bg-primary hover:bg-indigo-700 focus:outline-none transition-colors">
+                    <i data-lucide="sliders-horizontal" class="w-4 h-4 mr-2"></i>
+                    Adjust Stock
+                </a>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <!-- Product Details Card -->
+        <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6 lg:col-span-1">
+            <h3 class="font-semibold text-gray-900 mb-4 flex items-center">
+                <i data-lucide="tag" class="w-4 h-4 mr-2 text-gray-400"></i>
+                Pricing & Info
+            </h3>
+
+            <div class="space-y-4">
+                <div class="flex justify-between items-center py-2 border-b border-gray-50">
+                    <span class="text-sm text-gray-500">Cost Price</span>
+                    <span class="text-sm font-medium text-gray-900">₦{{ "{:,.2f}".format(product.cost_price) }}</span>
+                </div>
+                <div class="flex justify-between items-center py-2 border-b border-gray-50">
+                    <span class="text-sm text-gray-500">Selling Price</span>
+                    <span class="text-sm font-medium text-gray-900">₦{{ "{:,.2f}".format(product.selling_price)
+                        }}</span>
+                </div>
+
+                {% set margin = product.calculate_margin() %}
+                <div class="flex justify-between items-center py-2 border-b border-gray-50">
+                    <span class="text-sm text-gray-500">Profit Margin</span>
+                    <span
+                        class="text-sm font-bold {{ 'text-green-600' if margin >= 20 else ('text-yellow-600' if margin > 0 else 'text-red-600') }}">
+                        {{ "{:.1f}%".format(margin) }}
+                    </span>
+                </div>
+
+                <div class="flex justify-between items-center py-2 border-b border-gray-50">
+                    <span class="text-sm text-gray-500">Unit</span>
+                    <span class="text-sm text-gray-900 capitalize">{{ product.unit }}</span>
+                </div>
+
+                <div class="pt-2">
+                    <p class="text-xs text-gray-500 uppercase tracking-wide mb-1">Description</p>
+                    <p class="text-sm text-gray-700 leading-relaxed">{{ product.description or 'No description
+                        available.' }}</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Inventory Stats Card -->
+        <div class="lg:col-span-2 space-y-6">
+            <!-- Warehouse Stock Card -->
+            <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+                <div class="flex items-center justify-between mb-4">
+                    <h3 class="font-semibold text-gray-900 flex items-center">
+                        <i data-lucide="warehouse" class="w-4 h-4 mr-2 text-gray-400"></i>
+                        Central Warehouse Stock
+                    </h3>
+                    <span class="text-xs text-gray-500">Reorder Level: {{ product.reorder_level }}</span>
+                </div>
+
+                <div class="flex items-center gap-6">
+                    <div class="flex-1">
+                        <div class="flex items-baseline gap-2">
+                            <span class="text-4xl font-bold text-gray-900">{{ warehouse_stock }}</span>
+                            <span class="text-sm text-gray-500 capitalize">{{ product.unit }}s</span>
+                        </div>
+
+                        <div class="mt-2 text-sm">
+                            Status:
+                            {% if warehouse_stock == 0 %}
+                            <span class="text-red-600 font-medium bg-red-50 px-2 py-0.5 rounded">Out of Stock</span>
+                            {% elif warehouse_stock <= product.reorder_level %} <span
+                                class="text-yellow-600 font-medium bg-yellow-50 px-2 py-0.5 rounded">Low Stock</span>
+                                {% else %}
+                                <span class="text-green-600 font-medium bg-green-50 px-2 py-0.5 rounded">In Stock</span>
+                                {% endif %}
+                        </div>
+                    </div>
+
+                    <div class="h-16 w-px bg-gray-200"></div>
+
+                    <div class="flex-1">
+                        <div class="text-sm text-gray-500">Inventory Value (Cost)</div>
+                        <div class="text-xl font-semibold text-gray-900">₦{{ "{:,.2f}".format(warehouse_stock *
+                            product.cost_price) }}</div>
+                    </div>
+
+                    <div class="flex-1 hidden sm:block">
+                        <div class="text-sm text-gray-500">Potential Revenue</div>
+                        <div class="text-xl font-semibold text-gray-700">₦{{ "{:,.2f}".format(warehouse_stock *
+                            product.selling_price) }}</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Recent Activity (Adjustments + Transfers) -->
+            {% if current_user.role in ['super_admin', 'general_manager'] %}
+            <div class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+
+                <!-- Header row -->
+                <div
+                    class="px-6 py-4 border-b border-gray-100 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                    <div>
+                        <h3 class="font-semibold text-gray-900">Inventory History</h3>
+                        <p class="text-xs text-gray-400 mt-0.5">
+                            {% if total_history > 0 %}
+                            {{ total_history }} record{% if total_history != 1 %}s{% endif %} found
+                            {% if page and total_pages > 1 %} &mdash; page {{ page }} of {{ total_pages }}{% endif %}
+                            {% else %}
+                            No records match your filters
+                            {% endif %}
+                        </p>
+                    </div>
+                    <!-- PDF Download -->
+                    <a href="{{ url_for('products.history_pdf', id=product.id,
+                                outlet_id=filter_outlet, date_from=date_from,
+                                date_to=date_to, type=filter_type) }}" target="_blank"
+                        class="inline-flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white text-sm font-medium rounded-lg hover:bg-indigo-700 transition-colors whitespace-nowrap">
+                        <i data-lucide="file-text" class="w-4 h-4"></i>
+                        Download PDF
+                    </a>
+                </div>
+
+                <!-- Filter bar -->
+                <form method="GET" action="{{ url_for('products.detail', id=product.id) }}"
+                    class="px-6 py-3 bg-gray-50 border-b border-gray-100">
+                    <div class="flex flex-wrap gap-3 items-end">
+
+                        <!-- Outlet filter -->
+                        <div>
+                            <label class="block text-xs font-medium text-gray-600 mb-1">Outlet</label>
+                            <select name="outlet_id"
+                                class="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 min-w-[150px]">
+                                <option value="">All Outlets</option>
+                                {% for outlet in outlets %}
+                                <option value="{{ outlet.id }}" {% if filter_outlet==outlet.id|string %}selected{% endif
+                                    %}>
+                                    {{ outlet.name }}
+                                </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+
+                        <!-- Date From -->
+                        <div>
+                            <label class="block text-xs font-medium text-gray-600 mb-1">From</label>
+                            <input type="date" name="date_from" value="{{ date_from }}"
+                                class="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500">
+                        </div>
+
+                        <!-- Date To -->
+                        <div>
+                            <label class="block text-xs font-medium text-gray-600 mb-1">To</label>
+                            <input type="date" name="date_to" value="{{ date_to }}"
+                                class="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500">
+                        </div>
+
+                        <!-- Type filter -->
+                        <div>
+                            <label class="block text-xs font-medium text-gray-600 mb-1">Type</label>
+                            <select name="type"
+                                class="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500">
+                                <option value="all" {% if filter_type=='all' %}selected{% endif %}>All Types</option>
+                                <option value="adjustment" {% if filter_type=='adjustment' %}selected{% endif %}>
+                                    Adjustments Only</option>
+                                <option value="transfer" {% if filter_type=='transfer' %}selected{% endif %}>Transfers
+                                    Only</option>
+                            </select>
+                        </div>
+
+                        <div class="flex gap-2">
+                            <button type="submit"
+                                class="px-4 py-2 bg-indigo-600 text-white text-sm font-medium rounded-lg hover:bg-indigo-700">
+                                Filter
+                            </button>
+                            {% if filter_outlet or date_from or date_to or filter_type != 'all' %}
+                            <a href="{{ url_for('products.detail', id=product.id) }}"
+                                class="px-4 py-2 bg-white border border-gray-300 text-gray-700 text-sm font-medium rounded-lg hover:bg-gray-50">
+                                Clear
+                            </a>
+                            {% endif %}
+                        </div>
+                    </div>
+                </form>
+
+                <!-- History Table -->
+                <div class="overflow-x-auto">
+                    <table class="min-w-full divide-y divide-gray-200 text-sm">
+                        <thead class="bg-gray-50">
+                            <tr>
+                                <th
+                                    class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                    Date</th>
+                                <th
+                                    class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                    Type</th>
+                                <th
+                                    class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                    Outlet / Route</th>
+                                <th
+                                    class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                    Reference</th>
+                                <th
+                                    class="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                    Change</th>
+                                <th
+                                    class="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                    Before → After</th>
+                                <th
+                                    class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                    Note / Reason</th>
+                                <th
+                                    class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                    By</th>
+                            </tr>
+                        </thead>
+                        <tbody class="bg-white divide-y divide-gray-100">
+                            {% for row in history %}
+                            <tr class="hover:bg-gray-50">
+                                <!-- Date -->
+                                <td class="px-4 py-3 whitespace-nowrap text-gray-600">
+                                    {{ row.date.strftime('%d %b %Y') if row.date else '—' }}<br>
+                                    <span class="text-xs text-gray-400">{{ row.date.strftime('%H:%M') if row.date else
+                                        '' }}</span>
+                                </td>
+
+                                <!-- Type badge -->
+                                <td class="px-4 py-3 whitespace-nowrap">
+                                    {% if row.type == 'Adjustment' %}
+                                    <span
+                                        class="px-2 py-0.5 rounded-full text-xs font-semibold bg-blue-100 text-blue-800">
+                                        {{ row.subtype }}
+                                    </span>
+                                    {% else %}
+                                    <span
+                                        class="px-2 py-0.5 rounded-full text-xs font-semibold
+                                        {{ 'bg-orange-100 text-orange-800' if row.subtype == 'Sent' else 'bg-teal-100 text-teal-800' }}">
+                                        ⇌ {{ row.subtype }}
+                                    </span>
+                                    {% endif %}
+                                </td>
+
+                                <!-- Outlet -->
+                                <td class="px-4 py-3 text-gray-600 text-xs max-w-[160px] truncate"
+                                    title="{{ row.outlet }}">
+                                    {{ row.outlet }}
+                                </td>
+
+                                <!-- Reference -->
+                                <td class="px-4 py-3 whitespace-nowrap text-gray-500 font-mono text-xs">
+                                    {{ row.reference }}
+                                </td>
+
+                                <!-- Change -->
+                                <td class="px-4 py-3 whitespace-nowrap text-right font-bold
+                                    {{ 'text-green-600' if row.change > 0 else 'text-red-600' }}">
+                                    {{ '+' if row.change > 0 else '' }}{{ row.change }}
+                                </td>
+
+                                <!-- Before → After -->
+                                <td class="px-4 py-3 whitespace-nowrap text-right text-xs text-gray-500">
+                                    {% if row.before is not none %}
+                                    {{ row.before }} → <span class="font-semibold text-gray-700">{{ row.after }}</span>
+                                    {% else %}
+                                    <span class="text-gray-300">—</span>
+                                    {% endif %}
+                                </td>
+
+                                <!-- Note -->
+                                <td class="px-4 py-3 text-gray-500 max-w-[200px] truncate text-xs"
+                                    title="{{ row.note }}">
+                                    {{ row.note }}
+                                </td>
+
+                                <!-- By -->
+                                <td class="px-4 py-3 whitespace-nowrap text-xs text-gray-500">
+                                    {{ row.by }}
+                                </td>
+                            </tr>
+                            {% else %}
+                            <tr>
+                                <td colspan="8" class="px-6 py-10 text-center text-sm text-gray-400 italic">
+                                    No inventory records found
+                                    {% if filter_outlet or date_from or date_to or filter_type != 'all' %}
+                                    for the current filters.
+                                    <a href="{{ url_for('products.detail', id=product.id) }}"
+                                        class="text-indigo-500 hover:underline ml-1">Clear filters</a>
+                                    {% else %}
+                                    yet.
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+
+                <!-- Pagination -->
+                {% if total_pages > 1 %}
+                <div class="px-6 py-3 border-t border-gray-100 flex items-center justify-between text-sm text-gray-500">
+                    <span>Page {{ page }} of {{ total_pages }} &mdash; {{ total_history }} records</span>
+                    <div class="flex gap-2">
+                        {% if page > 1 %}
+                        <a href="{{ url_for('products.detail', id=product.id, page=page-1,
+                                    outlet_id=filter_outlet, date_from=date_from, date_to=date_to, type=filter_type) }}"
+                            class="px-3 py-1 rounded border border-gray-300 hover:bg-gray-50">&laquo; Prev</a>
+                        {% endif %}
+                        {% if page < total_pages %} <a
+                            href="{{ url_for('products.detail', id=product.id, page=page+1,
+                                    outlet_id=filter_outlet, date_from=date_from, date_to=date_to, type=filter_type) }}"
+                            class="px-3 py-1 rounded border border-gray-300 hover:bg-gray-50">Next &raquo;</a>
+                            {% endif %}
+                    </div>
+                </div>
+                {% endif %}
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}

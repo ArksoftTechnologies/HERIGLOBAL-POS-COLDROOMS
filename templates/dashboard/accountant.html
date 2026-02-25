@@ -1,0 +1,154 @@
+{% extends "base.html" %}
+
+{% block title %}Accounting Dashboard - {{ app_name }}{% endblock %}
+
+{% block header_title %}Financial Overview{% endblock %}
+
+{% block content %}
+<!-- Hero Section -->
+<div class="relative bg-white rounded-xl shadow-sm overflow-hidden mb-8 border border-gray-200">
+    <div class="absolute inset-0">
+        <img src="{{ url_for('static', filename='images/dashboard-accountant.png') }}"
+            class="w-full h-full object-cover opacity-10" alt="Dashboard Hero">
+        <div class="absolute inset-0 bg-gradient-to-r from-emerald-900/90 to-teal-800/80 mix-blend-multiply"></div>
+    </div>
+    <div class="relative p-8 md:p-10 text-white flex flex-col md:flex-row items-center justify-between">
+        <div>
+            <h2 class="text-3xl font-bold font-header mb-2">Detailed Financials</h2>
+            <p class="text-gray-200 opacity-90 max-w-xl">
+                Track revenue, expenses, and generate reports.
+            </p>
+        </div>
+        <div class="mt-6 md:mt-0 flex gap-3">
+            <button
+                class="px-5 py-2.5 bg-white text-emerald-800 font-semibold rounded-lg shadow hover:bg-gray-50 transition flex items-center">
+                <i data-lucide="download" class="w-4 h-4 mr-2"></i> Export Report
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- Financial Summary Cards -->
+<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+    <!-- Revenue -->
+    <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-100 flex flex-col justify-between h-32">
+        <div class="flex items-center justify-between">
+            <span class="text-gray-500 text-xs font-semibold uppercase">Total Revenue (Month)</span>
+            <i data-lucide="trending-up" class="w-5 h-5 text-green-500"></i>
+        </div>
+        <div>
+            <h3 class="text-2xl font-bold text-gray-800">₦ 12.4M</h3>
+            <p class="text-xs text-green-600 font-medium">+8.2% vs last month</p>
+        </div>
+    </div>
+
+    <!-- Expenses -->
+    <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-100 flex flex-col justify-between h-32">
+        <div class="flex items-center justify-between">
+            <span class="text-gray-500 text-xs font-semibold uppercase">Total Expenses</span>
+            <i data-lucide="trending-down" class="w-5 h-5 text-red-500"></i>
+        </div>
+        <div>
+            <h3 class="text-2xl font-bold text-gray-800">₦ 1.8M</h3>
+            <p class="text-xs text-gray-500 font-medium">Within budget</p>
+        </div>
+    </div>
+
+    <!-- Net Profit -->
+    <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-100 flex flex-col justify-between h-32">
+        <div class="flex items-center justify-between">
+            <span class="text-gray-500 text-xs font-semibold uppercase">Net Profit</span>
+            <i data-lucide="pie-chart" class="w-5 h-5 text-emerald-500"></i>
+        </div>
+        <div>
+            <h3 class="text-2xl font-bold text-gray-800">₦ 10.6M</h3>
+            <p class="text-xs text-gray-500 font-medium">Margin: 85%</p>
+        </div>
+    </div>
+
+    <!-- Pending Invoices -->
+    <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-100 flex flex-col justify-between h-32">
+        <div class="flex items-center justify-between">
+            <span class="text-gray-500 text-xs font-semibold uppercase">Pending Remittance</span>
+            <i data-lucide="clock" class="w-5 h-5 text-orange-500"></i>
+        </div>
+        <div>
+            <h3 class="text-2xl font-bold text-gray-800">₦ 450k</h3>
+            <p class="text-xs text-orange-500 font-medium">3 Outlets pending</p>
+        </div>
+    </div>
+</div>
+
+<!-- Grid: Recent Transactions & Expenses -->
+<div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+    <!-- Unverified Sales -->
+    <div class="bg-white rounded-xl shadow-sm border border-gray-200">
+        <div class="px-6 py-4 border-b border-gray-100 flex justify-between items-center">
+            <h3 class="font-semibold text-gray-800">Recent Sales needing Verification</h3>
+            <button class="text-sm text-primary hover:underline">Verify All</button>
+        </div>
+        <div class="p-6">
+            <div class="space-y-4">
+                <div class="flex items-center justify-between border-b border-gray-50 pb-4 last:border-0 last:pb-0">
+                    <div>
+                        <p class="font-medium text-gray-900">Larger Purchase - Lekki</p>
+                        <p class="text-xs text-gray-500">Ref: INV-0992</p>
+                    </div>
+                    <div class="text-right">
+                        <p class="font-bold text-gray-800">₦ 250,000</p>
+                        <span class="text-xs text-orange-500 bg-orange-50 px-2 py-0.5 rounded">Pending</span>
+                    </div>
+                </div>
+                <div class="flex items-center justify-between border-b border-gray-50 pb-4 last:border-0 last:pb-0">
+                    <div>
+                        <p class="font-medium text-gray-900">Bulk Refund - Ikeja</p>
+                        <p class="text-xs text-gray-500">Ref: REF-0021</p>
+                    </div>
+                    <div class="text-right">
+                        <p class="font-bold text-red-600">-₦ 45,000</p>
+                        <span class="text-xs text-orange-500 bg-orange-50 px-2 py-0.5 rounded">Review</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Expense Approvals -->
+    <div class="bg-white rounded-xl shadow-sm border border-gray-200">
+        <div class="px-6 py-4 border-b border-gray-100 flex justify-between items-center">
+            <h3 class="font-semibold text-gray-800">Expense Requests</h3>
+            <span class="bg-red-100 text-red-600 px-2 py-0.5 rounded text-xs font-bold">2 New</span>
+        </div>
+        <div class="p-6">
+            <div class="space-y-4">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <p class="font-medium text-gray-900">Generator Fuel</p>
+                        <p class="text-xs text-gray-500">Requested by: Lekki Manager</p>
+                    </div>
+                    <div class="flex items-center gap-3">
+                        <span class="font-bold text-gray-800">₦ 15,000</span>
+                        <button class="p-1 rounded bg-green-100 text-green-600 hover:bg-green-200"><i
+                                data-lucide="check" class="w-4 h-4"></i></button>
+                        <button class="p-1 rounded bg-red-100 text-red-600 hover:bg-red-200"><i data-lucide="x"
+                                class="w-4 h-4"></i></button>
+                    </div>
+                </div>
+                <div class="flex items-center justify-between">
+                    <div>
+                        <p class="font-medium text-gray-900">Store Repair</p>
+                        <p class="text-xs text-gray-500">Requested by: Ikeja Manager</p>
+                    </div>
+                    <div class="flex items-center gap-3">
+                        <span class="font-bold text-gray-800">₦ 8,500</span>
+                        <button class="p-1 rounded bg-green-100 text-green-600 hover:bg-green-200"><i
+                                data-lucide="check" class="w-4 h-4"></i></button>
+                        <button class="p-1 rounded bg-red-100 text-red-600 hover:bg-red-200"><i data-lucide="x"
+                                class="w-4 h-4"></i></button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

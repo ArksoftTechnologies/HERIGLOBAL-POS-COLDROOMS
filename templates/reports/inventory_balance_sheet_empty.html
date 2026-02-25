@@ -1,0 +1,21 @@
+{% extends "base.html" %}
+
+{% block title %}Inventory Balance Sheet{% endblock %}
+
+{% block header_title %}Inventory Balance Sheet{% endblock %}
+
+{% block content %}
+<div class="flex flex-col items-center justify-center h-[60vh] text-center">
+    <div class="bg-indigo-50 p-6 rounded-full mb-6">
+        <i data-lucide="store" class="w-16 h-16 text-indigo-500"></i>
+    </div>
+    <h2 class="text-2xl font-bold text-gray-900 mb-2">Select an Outlet</h2>
+    <p class="text-gray-500 max-w-md mb-8">Please select an outlet from the menu or your dashboard to view the inventory
+        balance sheet.</p>
+
+    <a href="{{ url_for('reports.index') }}"
+        class="bg-primary text-white px-6 py-3 rounded-lg hover:bg-indigo-700 transition-colors font-medium">
+        Back to Dashboard
+    </a>
+</div>
+{% endblock %}

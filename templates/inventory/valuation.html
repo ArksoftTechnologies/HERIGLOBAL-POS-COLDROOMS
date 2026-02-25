@@ -1,0 +1,113 @@
+{% extends "base.html" %}
+
+{% block title %}Inventory Valuation - {{ app_name }}{% endblock %}
+{% block header_title %}Valuation Report{% endblock %}
+
+{% block content %}
+<div class="space-y-6">
+    <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+        <div>
+            <h1 class="text-2xl font-bold text-gray-900 font-header">Inventory Valuation Report</h1>
+            <p class="text-sm text-gray-500 mt-1">Snapshot of current asset value and potential revenue.</p>
+        </div>
+        <div class="flex items-center gap-2">
+            <button onclick="window.print()"
+                class="inline-flex items-center px-4 py-2 border border-gray-300 shadow-sm text-sm font-medium rounded-lg text-gray-700 bg-white hover:bg-gray-50 focus:outline-none transition-colors">
+                <i data-lucide="printer" class="w-4 h-4 mr-2"></i>
+                Print Report
+            </button>
+            <button
+                class="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-lg text-white bg-primary hover:bg-indigo-700 focus:outline-none transition-colors opacity-50 cursor-not-allowed">
+                <i data-lucide="download" class="w-4 h-4 mr-2"></i>
+                Export PDF
+            </button>
+        </div>
+    </div>
+
+    <!-- Summary Cards -->
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
+            <p class="text-sm font-medium text-gray-500">Total Asset Value (Cost)</p>
+            <p class="text-2xl font-bold text-gray-900 mt-1">₦{{ "{:,.2f}".format(total_cost_value) }}</p>
+        </div>
+        <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
+            <p class="text-sm font-medium text-gray-500">Total Potential Revenue</p>
+            <p class="text-2xl font-bold text-gray-900 mt-1">₦{{ "{:,.2f}".format(total_potential_revenue) }}</p>
+        </div>
+        <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
+            <p class="text-sm font-medium text-gray-500">Potential Profit</p>
+            <p class="text-2xl font-bold text-green-600 mt-1">₦{{ "{:,.2f}".format(total_potential_profit) }}</p>
+        </div>
+    </div>
+
+    <!-- Valuation Table -->
+    <div class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+        <div class="overflow-x-auto">
+            <table class="min-w-full divide-y divide-gray-200">
+                <thead class="bg-gray-50">
+                    <tr>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Product</th>
+                        <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Qty
+                        </th>
+                        <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Unit
+                            Cost</th>
+                        <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Total Cost</th>
+                        <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Unit
+                            Price</th>
+                        <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Potential Rev</th>
+                        <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Profit</th>
+                    </tr>
+                </thead>
+                <tbody class="bg-white divide-y divide-gray-200">
+                    {% for item in valuation_data %}
+                    <tr class="hover:bg-gray-50">
+                        <td class="px-6 py-4 whitespace-nowrap">
+                            <div class="flex items-center">
+                                <div>
+                                    <div class="text-sm font-medium text-gray-900">{{ item.product.name }}</div>
+                                    <div class="text-xs text-gray-500 font-mono">{{ item.product.sku }}</div>
+                                </div>
+                            </div>
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap text-right text-sm text-gray-900 font-medium">
+                            {{ item.quantity }}
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap text-right text-sm text-gray-500">
+                            ₦{{ "{:,.2f}".format(item.product.cost_price) }}
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium text-gray-900">
+                            ₦{{ "{:,.2f}".format(item.cost_value) }}
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap text-right text-sm text-gray-500">
+                            ₦{{ "{:,.2f}".format(item.product.selling_price) }}
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap text-right text-sm text-gray-500">
+                            ₦{{ "{:,.2f}".format(item.potential_revenue) }}
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium text-green-600">
+                            ₦{{ "{:,.2f}".format(item.potential_profit) }}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+                <tfoot class="bg-gray-50">
+                    <tr>
+                        <td colspan="3" class="px-6 py-3 text-right font-bold text-gray-900">Grand Totals:</td>
+                        <td class="px-6 py-3 text-right font-bold text-gray-900">₦{{ "{:,.2f}".format(total_cost_value)
+                            }}</td>
+                        <td class="px-6 py-3"></td>
+                        <td class="px-6 py-3 text-right font-bold text-gray-900">₦{{
+                            "{:,.2f}".format(total_potential_revenue) }}</td>
+                        <td class="px-6 py-3 text-right font-bold text-green-700">₦{{
+                            "{:,.2f}".format(total_potential_profit) }}</td>
+                    </tr>
+                </tfoot>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}

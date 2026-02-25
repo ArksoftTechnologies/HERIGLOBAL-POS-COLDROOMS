@@ -1,0 +1,198 @@
+{% extends "base.html" %}
+
+{% block title %}Sales Summary Report{% endblock %}
+
+{% block header_title %}Sales Summary Report{% endblock %}
+
+{% block content %}
+<div class="space-y-6">
+    <!-- Filters -->
+    <div class="bg-white rounded-xl shadow-sm p-4 border border-gray-100">
+        <form method="get" class="flex flex-wrap items-end gap-4">
+            <div class="w-full sm:w-auto">
+                <label class="block text-sm font-medium text-gray-700 mb-1">Date Range</label>
+                <div class="flex items-center space-x-2">
+                    <input type="date" name="date_from" value="{{ date_from }}"
+                        class="rounded-lg border-gray-300 shadow-sm focus:border-primary focus:ring-primary text-sm">
+                    <span class="text-gray-500">to</span>
+                    <input type="date" name="date_to" value="{{ date_to }}"
+                        class="rounded-lg border-gray-300 shadow-sm focus:border-primary focus:ring-primary text-sm">
+                </div>
+            </div>
+
+            {% if outlets %}
+            <div class="w-full sm:w-auto">
+                <label class="block text-sm font-medium text-gray-700 mb-1">Outlet</label>
+                <select name="outlet_id"
+                    class="rounded-lg border-gray-300 shadow-sm focus:border-primary focus:ring-primary text-sm w-full min-w-[150px]">
+                    <option value="">All Outlets</option>
+                    {% for outlet in outlets %}
+                    <option value="{{ outlet.id }}" {% if selected_outlet==outlet.id %}selected{% endif %}>{{
+                        outlet.name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            {% endif %}
+
+            <div class="w-full sm:w-auto">
+                <label class="block text-sm font-medium text-gray-700 mb-1">Sales Rep</label>
+                <select name="sales_rep_id"
+                    class="rounded-lg border-gray-300 shadow-sm focus:border-primary focus:ring-primary text-sm w-full min-w-[150px]">
+                    <option value="">All Representatives</option>
+                    {% for rep in sales_reps %}
+                    <option value="{{ rep.id }}" {% if selected_rep==rep.id %}selected{% endif %}>{{ rep.full_name }}
+                    </option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <button type="submit"
+                class="bg-primary text-white px-4 py-2 rounded-lg hover:bg-indigo-700 transition-colors text-sm font-medium">
+                Apply Filters
+            </button>
+            <a href="{{ url_for('reports.sales_summary') }}"
+                class="text-gray-500 hover:text-gray-700 text-sm font-medium py-2">
+                Clear
+            </a>
+        </form>
+    </div>
+
+    <!-- Summary Cards -->
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <div class="bg-white rounded-xl shadow-sm p-6 border-l-4 border-indigo-500">
+            <div class="flex justify-between items-start">
+                <div>
+                    <p class="text-sm font-medium text-gray-500 uppercase tracking-wider">Total Sales</p>
+                    <h3 class="text-3xl font-bold text-gray-900 mt-2">₦{{ "{:,.2f}".format(summary.total_sales or 0) }}
+                    </h3>
+                </div>
+                <div class="p-3 bg-indigo-50 rounded-lg text-indigo-600">
+                    <i data-lucide="banknote" class="w-6 h-6"></i>
+                </div>
+            </div>
+        </div>
+
+        <div class="bg-white rounded-xl shadow-sm p-6 border-l-4 border-emerald-500">
+            <div class="flex justify-between items-start">
+                <div>
+                    <p class="text-sm font-medium text-gray-500 uppercase tracking-wider">Transactions</p>
+                    <h3 class="text-3xl font-bold text-gray-900 mt-2">{{ summary.total_transactions or 0 }}</h3>
+                </div>
+                <div class="p-3 bg-emerald-50 rounded-lg text-emerald-600">
+                    <i data-lucide="shopping-cart" class="w-6 h-6"></i>
+                </div>
+            </div>
+        </div>
+
+        <div class="bg-white rounded-xl shadow-sm p-6 border-l-4 border-purple-500">
+            <div class="flex justify-between items-start">
+                <div>
+                    <p class="text-sm font-medium text-gray-500 uppercase tracking-wider">Avg Transaction</p>
+                    <h3 class="text-3xl font-bold text-gray-900 mt-2">₦{{ "{:,.2f}".format(summary.average_transaction
+                        or 0) }}</h3>
+                </div>
+                <div class="p-3 bg-purple-50 rounded-lg text-purple-600">
+                    <i data-lucide="calculator" class="w-6 h-6"></i>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Charts & Breakdown -->
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <!-- Payment Methods -->
+        <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+            <h3 class="text-lg font-semibold text-gray-800 mb-4">Sales by Payment Mode</h3>
+            <div class="overflow-x-auto">
+                <table class="min-w-full divide-y divide-gray-200">
+                    <thead>
+                        <tr>
+                            <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Method</th>
+                            <th class="px-4 py-2 text-right text-xs font-medium text-gray-500 uppercase">Amount</th>
+                            <th class="px-4 py-2 text-right text-xs font-medium text-gray-500 uppercase">%</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-gray-200">
+                        {% for method in payment_breakdown %}
+                        <tr>
+                            <td class="px-4 py-3 text-sm text-gray-900">{{ method.name }}</td>
+                            <td class="px-4 py-3 text-sm text-gray-900 text-right">₦{{ "{:,.2f}".format(method.total) }}
+                            </td>
+                            <td class="px-4 py-3 text-sm text-gray-500 text-right">
+                                {% if summary.total_sales %}
+                                {{ "{:.1f}".format((method.total / summary.total_sales) * 100) }}%
+                                {% else %}
+                                0%
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Top Products -->
+        <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+            <h3 class="text-lg font-semibold text-gray-800 mb-4">Top 10 Products by Revenue</h3>
+            <div class="overflow-x-auto">
+                <table class="min-w-full divide-y divide-gray-200">
+                    <thead>
+                        <tr>
+                            <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Product</th>
+                            <th class="px-4 py-2 text-right text-xs font-medium text-gray-500 uppercase">Qty</th>
+                            <th class="px-4 py-2 text-right text-xs font-medium text-gray-500 uppercase">Revenue</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-gray-200">
+                        {% for product in top_products %}
+                        <tr>
+                            <td class="px-4 py-3 text-sm text-gray-900 truncate max-w-[200px]">{{ product.name }}</td>
+                            <td class="px-4 py-3 text-sm text-gray-900 text-right">{{ product.quantity_sold }}</td>
+                            <td class="px-4 py-3 text-sm text-gray-900 text-right">₦{{ "{:,.2f}".format(product.revenue)
+                                }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    {% if outlet_breakdown %}
+    <!-- Outlet Performance -->
+    <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+        <h3 class="text-lg font-semibold text-gray-800 mb-4">Sales by Outlet</h3>
+        <div class="overflow-x-auto">
+            <table class="min-w-full divide-y divide-gray-200">
+                <thead>
+                    <tr>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Outlet</th>
+                        <th class="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase">Transactions</th>
+                        <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">Total Sales</th>
+                        <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">Avg Ticket</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-gray-200">
+                    {% for outlet in outlet_breakdown %}
+                    <tr>
+                        <td class="px-6 py-4 text-sm font-medium text-gray-900">{{ outlet.name }}</td>
+                        <td class="px-6 py-4 text-sm text-gray-600 text-center">{{ outlet.transactions }}</td>
+                        <td class="px-6 py-4 text-sm font-bold text-gray-900 text-right">₦{{
+                            "{:,.2f}".format(outlet.total) }}</td>
+                        <td class="px-6 py-4 text-sm text-gray-600 text-right">
+                            {% if outlet.transactions %}
+                            ₦{{ "{:,.2f}".format(outlet.total / outlet.transactions) }}
+                            {% else %}
+                            ₦0.00
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

@@ -1,0 +1,94 @@
+{% extends "base.html" %}
+
+{% block title %}Ledger - {{ sales_rep.first_name }} {{ sales_rep.last_name }}{% endblock %}
+
+{% block content %}
+<div class="space-y-6">
+    <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+        <div>
+            <h1 class="text-2xl font-bold text-gray-900">Personal Ledger</h1>
+            <p class="text-gray-500">
+                Transaction history for <span class="font-medium text-gray-900">{{ sales_rep.first_name }} {{
+                    sales_rep.last_name }}</span>
+            </p>
+        </div>
+
+        <form action="{{ url_for('remittance.ledger') }}" method="GET" class="flex gap-2">
+            {% if current_user.role != 'sales_rep' %}
+            <input type="hidden" name="sales_rep_id" value="{{ sales_rep.id }}">
+            {% endif %}
+            <input type="date" name="date_from" value="{{ request.args.get('date_from', '') }}"
+                class="rounded-lg border-gray-300 shadow-sm text-sm">
+            <input type="date" name="date_to" value="{{ request.args.get('date_to', '') }}"
+                class="rounded-lg border-gray-300 shadow-sm text-sm">
+            <button type="submit"
+                class="inline-flex items-center px-3 py-2 border border-gray-300 shadow-sm text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50">
+                Filter
+            </button>
+        </form>
+    </div>
+
+    <!-- Ledger Table -->
+    <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+        <div class="overflow-x-auto">
+            <table class="min-w-full divide-y divide-gray-200">
+                <thead class="bg-gray-50">
+                    <tr>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date
+                        </th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Type
+                        </th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Reference</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Description</th>
+                        <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Collection (+)</th>
+                        <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Remittance (-)</th>
+                        <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Balance</th>
+                    </tr>
+                </thead>
+                <tbody class="bg-white divide-y divide-gray-200">
+                    {% for txn in transactions %}
+                    <tr class="hover:bg-gray-50 transition-colors">
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                            {{ txn.date.strftime('%Y-%m-%d') }}
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap">
+                            <span class="px-2 py-1 text-xs rounded-full 
+                                {% if txn.type == 'Collection' %}bg-green-100 text-green-800
+                                {% else %}bg-blue-100 text-blue-800{% endif %}">
+                                {{ txn.type }}
+                            </span>
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                            {{ txn.reference }}
+                        </td>
+                        <td class="px-6 py-4 text-sm text-gray-500 max-w-xs truncate">
+                            {{ txn.description }}
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium text-green-600">
+                            {% if txn.collection > 0 %}₦{{ "{:,.2f}".format(txn.collection) }}{% else %}—{% endif %}
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium text-blue-600">
+                            {% if txn.remittance > 0 %}₦{{ "{:,.2f}".format(txn.remittance) }}{% else %}—{% endif %}
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-bold text-gray-900 bg-gray-50">
+                            ₦{{ "{:,.2f}".format(txn.balance) }}
+                        </td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="7" class="px-6 py-12 text-center text-gray-500">
+                            No transactions found for this period.
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}

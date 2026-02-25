@@ -1,0 +1,140 @@
+{% extends "base.html" %}
+
+{% block title %}Expense Summary - {{ app_name }}{% endblock %}
+{% block header_title %}Expense Reports{% endblock %}
+
+{% block content %}
+<div class="max-w-7xl mx-auto space-y-8">
+
+    <!-- Report Header & Controls -->
+    <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
+        <form method="GET" class="flex flex-col lg:flex-row gap-4 justify-between items-end">
+            <div class="w-full grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div>
+                    <label class="block text-xs font-medium text-gray-500 mb-1">Date Range</label>
+                    <div class="flex items-center space-x-2">
+                        <input type="date" name="date_from" value="{{ date_from }}"
+                            class="w-full text-sm border-gray-300 rounded-lg">
+                        <span class="text-gray-400">-</span>
+                        <input type="date" name="date_to" value="{{ date_to }}"
+                            class="w-full text-sm border-gray-300 rounded-lg">
+                    </div>
+                </div>
+
+                {% if current_user.role != 'outlet_admin' %}
+                <div>
+                    <label class="block text-xs font-medium text-gray-500 mb-1">Outlet</label>
+                    <select name="outlet_id" class="w-full text-sm border-gray-300 rounded-lg">
+                        <option value="">All Outlets</option>
+                        {% for outlet in outlets %}
+                        <option value="{{ outlet.id }}" {% if current_outlet_id==outlet.id %}selected{% endif %}>{{
+                            outlet.name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                {% endif %}
+
+                <div>
+                    <label class="block text-xs font-medium text-gray-500 mb-1">&nbsp;</label>
+                    <button type="submit"
+                        class="w-full px-4 py-2 bg-gray-900 text-white text-sm font-medium rounded-lg hover:bg-gray-800 flex items-center justify-center">
+                        <i data-lucide="refresh-cw" class="w-4 h-4 mr-2"></i> Update Report
+                    </button>
+                </div>
+            </div>
+
+            <div class="flex space-x-2">
+                <!-- Export buttons would go here -->
+                <button type="button" disabled
+                    class="px-4 py-2 border border-gray-200 text-gray-400 text-sm font-medium rounded-lg cursor-not-allowed">
+                    <i data-lucide="download" class="w-4 h-4 mr-2 inline"></i> Export CSV
+                </button>
+            </div>
+        </form>
+    </div>
+
+    <!-- Summary Statistics -->
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+        <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
+            <p class="text-sm font-medium text-gray-500 mb-1">Total Expenses</p>
+            <h3 class="text-3xl font-bold text-gray-900">₦{{ "{:,.2f}".format(total_expenses) }}</h3>
+            <p class="text-xs text-gray-400 mt-2">For selected period</p>
+        </div>
+
+        <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
+            <p class="text-sm font-medium text-gray-500 mb-1">Transaction Count</p>
+            <h3 class="text-3xl font-bold text-gray-900">{{ total_count }}</h3>
+            <p class="text-xs text-gray-400 mt-2">Recorded expenses</p>
+        </div>
+
+        <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
+            <p class="text-sm font-medium text-gray-500 mb-1">Average Daily</p>
+            <!-- Approximate avg based on selected range or total/days -->
+            <h3 class="text-3xl font-bold text-gray-900">₦{{ "{:,.2f}".format(total_expenses / 30) }}</h3>
+            <p class="text-xs text-gray-400 mt-2">Est. last 30 days avg</p>
+        </div>
+
+        <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
+            <p class="text-sm font-medium text-gray-500 mb-1">Top Category</p>
+            {% set max_cat = category_data|dictsort(false, 'value')|last %}
+            <h3 class="text-xl font-bold text-gray-900 truncate">{{ max_cat[0] if max_cat else 'N/A' }}</h3>
+            <p class="text-xs text-gray-400 mt-2">{{ "₦{:,.2f}".format(max_cat[1]) if max_cat else '-' }}</p>
+        </div>
+    </div>
+
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+
+        <!-- Expenses by Category -->
+        <div class="lg:col-span-2 bg-white p-6 rounded-xl shadow-sm border border-gray-100">
+            <h3 class="text-lg font-bold text-gray-900 mb-6">Expenses by Category</h3>
+
+            <div class="space-y-4">
+                {% for category, amount in category_data.items() %}
+                {% set percent = (amount / total_expenses * 100) if total_expenses > 0 else 0 %}
+                <div>
+                    <div class="flex justify-between items-center mb-1">
+                        <span class="text-sm font-medium text-gray-700">{{ category }}</span>
+                        <span class="text-sm font-bold text-gray-900">₦{{ "{:,.2f}".format(amount) }} <span
+                                class="text-gray-400 font-normal">({{ "%.1f"|format(percent) }}%)</span></span>
+                    </div>
+                    <div class="w-full bg-gray-100 rounded-full h-2.5">
+                        <div class="bg-primary h-2.5 rounded-full" style="width: {{ percent }}%"></div>
+                    </div>
+                </div>
+                {% else %}
+                <p class="text-center text-gray-500 py-8">No data available for this period.</p>
+                {% endfor %}
+            </div>
+        </div>
+
+        <!-- Top Spenders -->
+        <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
+            <h3 class="text-lg font-bold text-gray-900 mb-6">Top Spenders</h3>
+
+            <div class="overflow-hidden">
+                <table class="min-w-full">
+                    <thead class="bg-gray-50">
+                        <tr>
+                            <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">User</th>
+                            <th class="px-4 py-2 text-right text-xs font-medium text-gray-500 uppercase">Amount</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-gray-100">
+                        {% for user, data in user_data %}
+                        <tr>
+                            <td class="px-4 py-3 text-sm text-gray-900 font-medium">{{ user }}</td>
+                            <td class="px-4 py-3 text-sm text-gray-900 text-right">₦{{ "{:,.0f}".format(data.amount) }}
+                            </td>
+                        </tr>
+                        {% else %}
+                        <tr>
+                            <td colspan="2" class="px-4 py-8 text-center text-gray-500 text-sm">No data available</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

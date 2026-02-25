@@ -1,0 +1,201 @@
+{% extends "base.html" %}
+
+{% block title %}Outlet Dashboard - {{ app_name }}{% endblock %}
+
+{% block header_title %}
+{% if outlet %}
+{{ outlet.name }} Management
+{% else %}
+Outlet Dashboard
+{% endif %}
+{% endblock %}
+
+{% block content %}
+<!-- Hero Section -->
+<div class="relative bg-white rounded-xl shadow-sm overflow-hidden mb-8 border border-gray-200">
+    <div class="absolute inset-0">
+        <img src="{{ url_for('static', filename='images/dashboard-outlet-admin.png') }}"
+            class="w-full h-full object-cover opacity-15" alt="">
+        <div class="absolute inset-0 bg-gradient-to-r from-orange-900/90 to-orange-700/80 mix-blend-multiply"></div>
+    </div>
+    <div class="relative p-8 md:p-10 text-white flex flex-col md:flex-row items-center justify-between">
+        <div>
+            <h2 class="text-2xl font-bold font-header mb-2">
+                {{ outlet.name if outlet else 'Outlet Dashboard' }}
+            </h2>
+            <p class="text-orange-100 opacity-90">
+                Real-time operations dashboard.
+                <span class="text-xs text-orange-200 ml-1">(Today)</span>
+            </p>
+        </div>
+        <div class="mt-6 md:mt-0 flex items-center gap-3">
+            <a href="{{ url_for('pos.checkout') }}"
+                class="bg-white/10 hover:bg-white/20 text-white text-sm font-medium px-4 py-2 rounded-lg border border-white/20 transition-colors">
+                <i data-lucide="shopping-cart" class="w-4 h-4 inline-block mr-1"></i>Open POS
+            </a>
+        </div>
+    </div>
+</div>
+
+<!-- KPI Cards -->
+<div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
+    <div class="bg-white rounded-xl border border-gray-200 shadow-sm p-5">
+        <p class="text-xs text-gray-500 uppercase font-semibold">Revenue Today</p>
+        <h3 class="text-2xl font-bold text-gray-900 mt-1">₦{{ "{:,.0f}".format(today_sales or 0) }}</h3>
+    </div>
+    <div class="bg-white rounded-xl border border-gray-200 shadow-sm p-5">
+        <p class="text-xs text-gray-500 uppercase font-semibold">Transactions (30d)</p>
+        <h3 class="text-2xl font-bold text-gray-900 mt-1">{{ outlet_transactions or 0 }}</h3>
+    </div>
+    <div class="bg-white rounded-xl border border-gray-200 shadow-sm p-5">
+        <p class="text-xs text-gray-500 uppercase font-semibold">Low Stock Items</p>
+        <h3
+            class="text-2xl font-bold {% if low_stock_count and low_stock_count > 0 %}text-red-600{% else %}text-green-600{% endif %} mt-1">
+            {{ low_stock_count or 0 }}</h3>
+    </div>
+    <div class="bg-white rounded-xl border border-gray-200 shadow-sm p-5">
+        <p class="text-xs text-gray-500 uppercase font-semibold">Outstanding Credit</p>
+        <h3 class="text-2xl font-bold text-gray-900 mt-1">₦{{ "{:,.0f}".format(outlet_outstanding or 0) }}</h3>
+    </div>
+</div>
+
+
+<!-- Main Grid -->
+
+</div>
+
+<!-- Main Grid -->
+<div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+
+    <!-- Left Column: Inventory & Alerts -->
+    <div class="lg:col-span-2 space-y-8">
+        <!-- Low Stock Alerts -->
+        <div class="bg-white rounded-xl shadow-sm border border-gray-200">
+            <div class="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
+                <h3 class="font-semibold text-gray-800 flex items-center">
+                    <i data-lucide="alert-triangle" class="w-4 h-4 text-orange-500 mr-2"></i> Low Stock Alerts
+                </h3>
+                <span class="bg-red-100 text-red-600 px-2 py-0.5 rounded text-xs font-bold">3 Items</span>
+            </div>
+            <div class="divide-y divide-gray-100">
+                <div class="p-4 flex items-center justify-between hover:bg-gray-50">
+                    <div class="flex items-center">
+                        <div class="w-10 h-10 bg-gray-100 rounded-lg flex items-center justify-center text-gray-400">
+                            <i data-lucide="image" class="w-5 h-5"></i>
+                        </div>
+                        <div class="ml-3">
+                            <p class="text-sm font-medium text-gray-900">Wireless Mouse M350</p>
+                            <p class="text-xs text-red-500">Only 2 left in stock</p>
+                        </div>
+                    </div>
+                    <button class="text-xs text-primary font-medium hover:underline">Restock</button>
+                </div>
+
+                <div class="p-4 flex items-center justify-between hover:bg-gray-50">
+                    <div class="flex items-center">
+                        <div class="w-10 h-10 bg-gray-100 rounded-lg flex items-center justify-center text-gray-400">
+                            <i data-lucide="image" class="w-5 h-5"></i>
+                        </div>
+                        <div class="ml-3">
+                            <p class="text-sm font-medium text-gray-900">USB-C Cable 2m</p>
+                            <p class="text-xs text-red-500">Only 5 left in stock</p>
+                        </div>
+                    </div>
+                    <button class="text-xs text-primary font-medium hover:underline">Restock</button>
+                </div>
+            </div>
+            <div class="px-6 py-3 bg-gray-50 rounded-b-xl border-t border-gray-100 text-center">
+                <a href="#" class="text-xs text-gray-500 hover:text-gray-800">View Full Inventory</a>
+            </div>
+        </div>
+
+        <!-- Recent Transactions -->
+        <div class="bg-white rounded-xl shadow-sm border border-gray-200">
+            <div class="px-6 py-4 border-b border-gray-100">
+                <h3 class="font-semibold text-gray-800">Recent Transactions</h3>
+            </div>
+            <div class="overflow-x-auto">
+                <table class="w-full text-left text-sm">
+                    <thead class="bg-gray-50 text-gray-500">
+                        <tr>
+                            <th class="px-6 py-3 font-medium">Order ID</th>
+                            <th class="px-6 py-3 font-medium">Sales Rep</th>
+                            <th class="px-6 py-3 font-medium">Amount</th>
+                            <th class="px-6 py-3 font-medium">Status</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-gray-100">
+                        <tr>
+                            <td class="px-6 py-3">#ORD-0092</td>
+                            <td class="px-6 py-3">Jane Sales</td>
+                            <td class="px-6 py-3">₦ 15,000</td>
+                            <td class="px-6 py-3"><span class="text-green-600">Completed</span></td>
+                        </tr>
+                        <tr>
+                            <td class="px-6 py-3">#ORD-0091</td>
+                            <td class="px-6 py-3">Mike Ross</td>
+                            <td class="px-6 py-3">₦ 4,500</td>
+                            <td class="px-6 py-3"><span class="text-green-600">Completed</span></td>
+                        </tr>
+                        <tr>
+                            <td class="px-6 py-3">#ORD-0090</td>
+                            <td class="px-6 py-3">Jane Sales</td>
+                            <td class="px-6 py-3">₦ 22,000</td>
+                            <td class="px-6 py-3"><span class="text-green-600">Completed</span></td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- Right Column: Staff & Quick Actions -->
+    <div class="space-y-8">
+        <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+            <h3 class="font-semibold text-gray-800 mb-4">Staff On Duty</h3>
+            <div class="space-y-4">
+                <div class="flex items-center justify-between">
+                    <div class="flex items-center">
+                        <div
+                            class="w-8 h-8 rounded-full bg-indigo-100 text-indigo-600 flex items-center justify-center font-bold text-xs">
+                            JS</div>
+                        <div class="ml-3">
+                            <p class="text-sm font-medium text-gray-900">Jane Sales</p>
+                            <p class="text-xs text-green-500">Online</p>
+                        </div>
+                    </div>
+                    <span class="text-xs font-semibold bg-gray-100 px-2 py-1 rounded">Register 1</span>
+                </div>
+                <div class="flex items-center justify-between">
+                    <div class="flex items-center">
+                        <div
+                            class="w-8 h-8 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center font-bold text-xs">
+                            MR</div>
+                        <div class="ml-3">
+                            <p class="text-sm font-medium text-gray-900">Mike Ross</p>
+                            <p class="text-xs text-gray-400">Offline</p>
+                        </div>
+                    </div>
+                    <span class="text-xs font-semibold bg-gray-100 px-2 py-1 rounded">Register 2</span>
+                </div>
+            </div>
+            <button
+                class="mt-6 w-full py-2 border border-dashed border-gray-300 rounded-lg text-sm text-gray-500 hover:border-gray-400 hover:text-gray-700">Manage
+                Staff Shifts</button>
+        </div>
+
+        <div
+            class="bg-gradient-to-br from-indigo-600 to-purple-700 rounded-xl shadow-lg p-6 text-white relative overflow-hidden">
+            <!-- Abstract Circles -->
+            <div class="absolute -top-10 -right-10 w-32 h-32 bg-white opacity-10 rounded-full"></div>
+            <div class="absolute bottom-5 -left-10 w-24 h-24 bg-white opacity-10 rounded-full"></div>
+
+            <h3 class="font-bold text-lg mb-2">Need Help?</h3>
+            <p class="text-indigo-100 text-sm mb-4">Contact Super Admin or General Manager for urgent issues.</p>
+            <button
+                class="w-full py-2 bg-white text-indigo-600 rounded-lg text-sm font-semibold hover:bg-gray-50 transition">Contact
+                Support</button>
+        </div>
+    </div>
+</div>
+{% endblock %}

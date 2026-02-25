@@ -1,0 +1,75 @@
+{% extends "pdf/base.html" %}
+
+{% block title %}Expense Record - {{ expense.expense_number }}{% endblock %}
+{% block filename %}Expense_{{ expense.expense_number }}{% endblock %}
+
+{% block content %}
+<div class="receipt-title">Expense Record</div>
+
+<div class="grid grid-cols-2 gap-4 bg-gray-50 border border-gray-200 rounded-lg p-6 mb-8">
+    <div>
+        <div class="text-sm font-semibold text-gray-500 mb-1">Expense Number</div>
+        <div class="text-base font-bold text-gray-900">{{ expense.expense_number }}</div>
+    </div>
+    <div>
+        <div class="text-sm font-semibold text-gray-500 mb-1">Date</div>
+        <div class="text-base font-medium text-gray-800">{{ expense.expense_date.strftime('%B %d, %Y') }}</div>
+    </div>
+    <div>
+        <div class="text-sm font-semibold text-gray-500 mb-1">Category</div>
+        <div
+            class="inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold bg-indigo-100 text-indigo-800">
+            {{ category.name }}
+        </div>
+    </div>
+    <div>
+        <div class="text-sm font-semibold text-gray-500 mb-1">Recorded By</div>
+        <div class="text-base font-medium text-gray-800">{{ recorded_by.full_name }}</div>
+    </div>
+</div>
+
+<div class="mb-8 p-5 bg-white border border-gray-200 rounded-lg shadow-sm">
+    <div class="text-sm font-bold text-gray-700 uppercase tracking-wider mb-2">Description</div>
+    <div class="text-gray-700 leading-relaxed">{{ expense.description }}</div>
+</div>
+
+<div class="flex justify-end mb-8 mt-10">
+    <div class="w-2/3 md:w-1/2">
+        <div class="flex justify-between items-center py-4 border-t-2 border-indigo-600 bg-indigo-50 px-6 rounded-b-lg">
+            <span class="text-lg font-extrabold text-indigo-900">EXPENSE AMOUNT:</span>
+            <span class="text-xl font-bold text-emerald-600 tabular-nums tracking-tight">₦{{
+                "{:,.2f}".format(expense.amount) }}</span>
+        </div>
+    </div>
+</div>
+
+{% if expense.payment_mode %}
+<div class="grid grid-cols-2 gap-4 bg-gray-50 border border-gray-200 rounded-lg p-5 mb-8">
+    <div>
+        <div class="text-sm font-semibold text-gray-500 mb-1">Payment Mode</div>
+        <div class="text-base font-medium text-gray-900">{{ expense.payment_mode.name }}</div>
+    </div>
+    {% if expense.reference_number %}
+    <div>
+        <div class="text-sm font-semibold text-gray-500 mb-1">Reference Number</div>
+        <div class="text-base font-medium text-gray-800">{{ expense.reference_number }}</div>
+    </div>
+    {% endif %}
+</div>
+{% endif %}
+
+{% if expense.notes %}
+<div class="mt-6 p-4 border border-gray-200 bg-gray-50 rounded-lg text-sm">
+    <strong class="text-gray-700 block mb-1">Additional Notes:</strong>
+    <span class="text-gray-600">{{ expense.notes }}</span>
+</div>
+{% endif %}
+
+<div class="mt-10 p-5 bg-amber-50 border-l-4 border-amber-500 rounded-r-lg">
+    <strong class="text-amber-800">Note:</strong>
+    <p class="text-sm text-amber-700 mt-2 leading-relaxed">
+        This expense has been recorded in the system and is included in financial reports.
+        Please retain any physical receipts for audit purposes.
+    </p>
+</div>
+{% endblock %}

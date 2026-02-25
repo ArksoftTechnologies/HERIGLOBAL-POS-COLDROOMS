@@ -1,0 +1,109 @@
+{% extends "base.html" %}
+
+{% block title %}My Profile - {{ app_name }}{% endblock %}
+
+{% block header_title %}My Profile{% endblock %}
+
+{% block content %}
+<div class="max-w-4xl mx-auto">
+    <!-- Profile Header Card -->
+    <div class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden mb-6">
+        <div class="h-32 bg-gradient-to-r from-primary to-indigo-600 relative">
+            <div class="absolute -bottom-12 left-8">
+                <div class="w-24 h-24 rounded-full bg-white p-1 shadow-md">
+                    <div
+                        class="w-full h-full rounded-full bg-gray-100 flex items-center justify-center text-3xl font-bold text-primary">
+                        {{ current_user.full_name[:1] }}
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="pt-16 pb-8 px-8">
+            <h2 class="text-2xl font-bold text-gray-900">{{ current_user.full_name }}</h2>
+            <p class="text-gray-500 flex items-center mt-1">
+                <i data-lucide="mail" class="w-4 h-4 mr-1"></i> {{ current_user.email }}
+            </p>
+            <div class="flex items-center mt-4 space-x-3">
+                <span class="px-3 py-1 bg-indigo-100 text-indigo-800 text-sm font-semibold rounded-full capitalize">
+                    {{ role_display }}
+                </span>
+                {% if current_user.is_active %}
+                <span
+                    class="px-3 py-1 bg-green-100 text-green-800 text-sm font-semibold rounded-full flex items-center">
+                    <span class="w-2 h-2 bg-green-500 rounded-full mr-2"></span> Active
+                </span>
+                {% else %}
+                <span class="px-3 py-1 bg-red-100 text-red-800 text-sm font-semibold rounded-full">Inactive</span>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Details Grid -->
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <!-- Account Info -->
+        <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+            <h3 class="text-lg font-semibold text-gray-800 mb-4 flex items-center">
+                <i data-lucide="shield" class="w-5 h-5 mr-2 text-primary"></i> Account Information
+            </h3>
+            <div class="space-y-4">
+                <div>
+                    <span class="block text-xs font-medium text-gray-400 uppercase">Username</span>
+                    <span class="text-sm font-medium text-gray-900">{{ current_user.username }}</span>
+                </div>
+                <div>
+                    <span class="block text-xs font-medium text-gray-400 uppercase">Member Since</span>
+                    <span class="text-sm font-medium text-gray-900">{{ current_user.created_at.strftime('%B %d, %Y')
+                        }}</span>
+                </div>
+                <div>
+                    <span class="block text-xs font-medium text-gray-400 uppercase">Last Updated</span>
+                    <span class="text-sm font-medium text-gray-900">{{ current_user.updated_at.strftime('%B %d, %Y')
+                        }}</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Role Specifics -->
+        <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+            <h3 class="text-lg font-semibold text-gray-800 mb-4 flex items-center">
+                <i data-lucide="map-pin" class="w-5 h-5 mr-2 text-primary"></i> Assignment Details
+            </h3>
+            <div class="space-y-4">
+                {% if outlet %}
+                <div>
+                    <span class="block text-xs font-medium text-gray-400 uppercase">Assigned Outlet</span>
+                    <span class="text-lg font-medium text-gray-900">{{ outlet.name }}</span>
+                </div>
+                <div>
+                    <span class="block text-xs font-medium text-gray-400 uppercase">Location</span>
+                    <span class="text-sm font-medium text-gray-900">{{ outlet.location }}</span>
+                </div>
+                {% else %}
+                <div class="bg-gray-50 rounded-lg p-4 text-center">
+                    <p class="text-gray-500 text-sm">
+                        No specific outlet assigned. <br>
+                        <span class="font-medium text-gray-700">Global System Access</span>
+                    </p>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Security Actions (Placeholder) -->
+    <div class="mt-6 bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+        <h3 class="text-lg font-semibold text-gray-800 mb-4">Security Settings</h3>
+        <div class="flex flex-col sm:flex-row gap-4">
+            <button
+                class="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 text-sm font-medium transition-colors">
+                Change Password
+            </button>
+            <button
+                class="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 text-sm font-medium transition-colors">
+                Enable Two-Factor Authentication
+            </button>
+        </div>
+    </div>
+</div>
+{% endblock %}

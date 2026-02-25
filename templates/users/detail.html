@@ -1,0 +1,140 @@
+{% extends "base.html" %}
+
+{% block title %}User Details: {{ user.username }} - {{ app_name }}{% endblock %}
+
+{% block content %}
+<div class="container mx-auto px-4 py-8">
+    <!-- Header -->
+    <div class="mb-6 flex justify-between items-center">
+        <div>
+            <h1 class="text-3xl font-bold text-gray-900">{{ user.full_name }}</h1>
+            <p class="text-gray-500 text-sm">Created on {{ user.created_at.strftime('%B %d, %Y') }}</p>
+        </div>
+        <div class="flex space-x-3">
+            <a href="{{ url_for('users.list_users') }}"
+                class="bg-gray-200 hover:bg-gray-300 text-gray-800 font-bold py-2 px-4 rounded">
+                Back to List
+            </a>
+            <a href="{{ url_for('users.edit_user', id=user.id) }}"
+                class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 px-4 rounded">
+                Edit User
+            </a>
+        </div>
+    </div>
+
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <!-- User Info Card -->
+        <div class="md:col-span-2 bg-white rounded-lg shadow-md overflow-hidden">
+            <div class="px-6 py-4 border-b">
+                <h3 class="text-lg font-semibold text-gray-800">User Information</h3>
+            </div>
+            <div class="p-6">
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div>
+                        <p class="text-sm font-medium text-gray-500">Username</p>
+                        <p class="mt-1 text-lg text-gray-900 font-mono">{{ user.username }}</p>
+                    </div>
+                    <div>
+                        <p class="text-sm font-medium text-gray-500">Email</p>
+                        <p class="mt-1 text-lg text-gray-900">{{ user.email or 'N/A' }}</p>
+                    </div>
+                    <div>
+                        <p class="text-sm font-medium text-gray-500">Role</p>
+                        <p class="mt-1">
+                            <span class="px-2 py-1 text-sm rounded-full bg-indigo-100 text-indigo-800 font-semibold">
+                                {{ user.role.replace('_', ' ').title() }}
+                            </span>
+                        </p>
+                    </div>
+                    <div>
+                        <p class="text-sm font-medium text-gray-500">Assigned Outlet</p>
+                        <p class="mt-1 text-lg text-gray-900">
+                            {% if user.outlet %}
+                            <a href="{{ url_for('outlets.detail', id=user.outlet.id) }}"
+                                class="text-indigo-600 hover:text-indigo-900">
+                                {{ user.outlet.name }}
+                            </a>
+                            {% else %}
+                            <span class="text-gray-400">Not Assigned</span>
+                            {% endif %}
+                        </p>
+                    </div>
+                    <div>
+                        <p class="text-sm font-medium text-gray-500">Status</p>
+                        <p class="mt-1">
+                            {% if user.is_active %}
+                            <span class="text-green-600 font-bold flex items-center">
+                                <svg class="h-5 w-5 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                        d="M5 13l4 4L19 7" />
+                                </svg>
+                                Active
+                            </span>
+                            {% else %}
+                            <span class="text-red-600 font-bold flex items-center">
+                                <svg class="h-5 w-5 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                        d="M6 18L18 6M6 6l12 12" />
+                                </svg>
+                                Deactivated
+                            </span>
+                            {% endif %}
+                        </p>
+                    </div>
+                    <div>
+                        <p class="text-sm font-medium text-gray-500">Last Updated</p>
+                        <p class="mt-1 text-gray-900">{{ user.updated_at.strftime('%Y-%m-%d %H:%M') }}</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Account Actions -->
+            <div class="px-6 py-4 bg-gray-50 border-t flex justify-end">
+                {% if user.is_active %}
+                <form action="{{ url_for('users.deactivate_user', id=user.id) }}" method="POST"
+                    onsubmit="return confirm('Are you sure you want to deactivate this user? They will strictly strictly be unable to login.');">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <button type="submit" class="text-red-600 hover:text-red-800 font-medium">Deactivate
+                        Account</button>
+                </form>
+                {% else %}
+                <form action="{{ url_for('users.activate_user', id=user.id) }}" method="POST">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <button type="submit" class="text-green-600 hover:text-green-800 font-medium">Activate
+                        Account</button>
+                </form>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Performance / Stats Card (if applicable) -->
+        <div class="bg-white rounded-lg shadow-md overflow-hidden h-fit">
+            <div class="px-6 py-4 border-b bg-gray-50">
+                <h3 class="text-lg font-semibold text-gray-800">Performance Overview</h3>
+            </div>
+            <div class="p-6">
+                {% if user.role == 'sales_rep' and sales_stats %}
+                <div class="mb-4">
+                    <p class="text-sm text-gray-500 uppercase tracking-wide">Total Sales Count</p>
+                    <p class="text-2xl font-bold text-gray-900">{{ sales_stats.total_sales or 0 }}</p>
+                </div>
+                <div>
+                    <p class="text-sm text-gray-500 uppercase tracking-wide">Total Revenue Generated</p>
+                    <p class="text-2xl font-bold text-green-600">₦{{ "{:,.2f}".format(sales_stats.total_revenue or 0) }}
+                    </p>
+                </div>
+                {% elif user.role == 'outlet_admin' and user.outlet %}
+                <div class="text-center py-4">
+                    <a href="{{ url_for('outlets.detail', id=user.outlet.id) }}"
+                        class="text-indigo-600 hover:text-indigo-800 font-medium">
+                        View Outlet Performance
+                    </a>
+                </div>
+                {% else %}
+                <p class="text-gray-500 italic text-center py-4">No performance metrics available for this role.</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

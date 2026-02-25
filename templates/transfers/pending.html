@@ -1,0 +1,175 @@
+{% extends "base.html" %}
+
+{% block title %}Pending Transfers - {{ app_name }}{% endblock %}
+{% block header_title %}Pending Transfers{% endblock %}
+
+{% block content %}
+<div class="space-y-6">
+    <div class="flex items-center justify-between">
+        <div>
+            <h1 class="text-2xl font-bold text-gray-900 font-header">My Pending Transfers</h1>
+            <p class="text-sm text-gray-500 mt-1">Actions required for {{ current_user.outlet.name }}</p>
+        </div>
+        <a href="{{ url_for('transfers.create') }}"
+            class="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-lg text-white bg-primary hover:bg-indigo-700 focus:outline-none transition-colors">
+            <i data-lucide="plus" class="w-4 h-4 mr-2"></i> Request Stock
+        </a>
+    </div>
+
+    <!-- Incoming (In Transit) - Needs Receipt -->
+    <div class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+        <div class="px-6 py-4 border-b border-gray-100 bg-purple-50 flex items-center">
+            <i data-lucide="truck" class="w-5 h-5 text-purple-600 mr-2"></i>
+            <h3 class="font-semibold text-purple-900">Incoming Deliveries (Action: Receive)</h3>
+        </div>
+        <div class="overflow-x-auto">
+            <table class="min-w-full divide-y divide-gray-200">
+                <thead class="bg-gray-50">
+                    <tr>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Transfer #</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Product</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">From
+                        </th>
+                        <th class="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Qty
+                        </th>
+                        <th class="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Sent Date</th>
+                        <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Action</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-gray-200 bg-white">
+                    {% for transfer in incoming_transit %}
+                    <tr class="hover:bg-gray-50">
+                        <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 font-mono">{{
+                            transfer.transfer_number }}</td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{{ transfer.product.name }}</td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{{ transfer.from_outlet.name }}
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap text-center text-sm font-medium">{{ transfer.quantity }}
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap text-center text-sm text-gray-500">
+                            {% if transfer.approved_at %}{{ transfer.approved_at.strftime('%m/%d') }}{% else %}-{% endif
+                            %}
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                            <form action="{{ url_for('transfers.receive', id=transfer.id) }}" method="POST"
+                                class="inline">
+                                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                <button type="submit" class="text-green-600 hover:text-green-900 font-semibold">Confirm
+                                    Receipt</button>
+                            </form>
+                        </td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="6" class="px-6 py-4 text-center text-gray-500 text-sm italic">No incoming
+                            deliveries.</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Outgoing (Pending) - Needs Approval -->
+    <div class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+        <div class="px-6 py-4 border-b border-gray-100 bg-yellow-50 flex items-center">
+            <i data-lucide="clock" class="w-5 h-5 text-yellow-600 mr-2"></i>
+            <h3 class="font-semibold text-yellow-900">Outgoing Requests (Action: Approve)</h3>
+        </div>
+        <div class="overflow-x-auto">
+            <table class="min-w-full divide-y divide-gray-200">
+                <thead class="bg-gray-50">
+                    <tr>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Transfer #</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Product</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">To
+                        </th>
+                        <th class="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Qty
+                        </th>
+                        <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Action</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-gray-200 bg-white">
+                    {% for transfer in outgoing_pending %}
+                    <tr class="hover:bg-gray-50">
+                        <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 font-mono">{{
+                            transfer.transfer_number }}</td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{{ transfer.product.name }}</td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{{ transfer.to_outlet.name }}</td>
+                        <td class="px-6 py-4 whitespace-nowrap text-center text-sm font-medium">{{ transfer.quantity }}
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium space-x-2">
+                            <a href="{{ url_for('transfers.detail', id=transfer.id) }}"
+                                class="text-primary hover:text-indigo-900">View</a>
+                        </td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="5" class="px-6 py-4 text-center text-gray-500 text-sm italic">No pending outgoing
+                            requests.</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Outgoing (Approved) - Needs Dispatch -->
+    <div class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+        <div class="px-6 py-4 border-b border-gray-100 bg-blue-50 flex items-center">
+            <i data-lucide="send" class="w-5 h-5 text-blue-600 mr-2"></i>
+            <h3 class="font-semibold text-blue-900">Ready for Dispatch (Action: Send)</h3>
+        </div>
+        <div class="overflow-x-auto">
+            <table class="min-w-full divide-y divide-gray-200">
+                <thead class="bg-gray-50">
+                    <tr>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Transfer #</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Product</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">To
+                        </th>
+                        <th class="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Qty
+                        </th>
+                        <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Action</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-gray-200 bg-white">
+                    {% for transfer in outgoing_approved %}
+                    <tr class="hover:bg-gray-50">
+                        <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 font-mono">{{
+                            transfer.transfer_number }}</td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{{ transfer.product.name }}</td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{{ transfer.to_outlet.name }}</td>
+                        <td class="px-6 py-4 whitespace-nowrap text-center text-sm font-medium">{{ transfer.quantity }}
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                            <form action="{{ url_for('transfers.dispatch', id=transfer.id) }}" method="POST"
+                                class="inline">
+                                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                <button type="submit" class="text-blue-600 hover:text-blue-900 font-semibold">Mark
+                                    Dispatched</button>
+                            </form>
+                        </td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="5" class="px-6 py-4 text-center text-gray-500 text-sm italic">No transfers ready
+                            for dispatch.</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}

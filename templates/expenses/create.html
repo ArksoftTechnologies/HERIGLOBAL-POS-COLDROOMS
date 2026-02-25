@@ -1,0 +1,298 @@
+{% extends "base.html" %}
+
+{% block title %}Record Expense - {{ app_name }}{% endblock %}
+{% block header_title %}Record Expense{% endblock %}
+
+{% block content %}
+<div class="max-w-4xl mx-auto" x-data="expenseForm()">
+
+    <!-- Success Message (if any) -->
+    {% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}
+    {% for category, message in messages %}
+    <div
+        class="mb-4 rounded-md p-4 {{ 'bg-green-50 text-green-700' if category == 'success' else 'bg-red-50 text-red-700' }}">
+        {{ message }}
+    </div>
+    {% endfor %}
+    {% endif %}
+    {% endwith %}
+
+    <form @submit.prevent="submitForm">
+        <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+            <div class="p-6 md:p-8 space-y-8">
+
+                <!-- Section 1: Core Details -->
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <!-- Amount -->
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">
+                            Amount <span class="text-red-500">*</span>
+                        </label>
+                        <div class="relative">
+                            <span class="absolute left-3 top-3 text-gray-500 font-semibold">₦</span>
+                            <input type="number" step="0.01" x-model="amount"
+                                class="pl-8 pr-4 py-3 w-full border border-gray-300 rounded-lg focus:ring-primary focus:border-primary text-lg font-medium"
+                                placeholder="0.00" required>
+                        </div>
+                        <p class="mt-1 text-sm text-red-500" x-show="v.amount.error" x-text="v.amount.message"></p>
+                    </div>
+
+                    <!-- Date -->
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">
+                            Expense Date <span class="text-red-500">*</span>
+                        </label>
+                        <input type="date" x-model="expense_date" max="{{ today }}"
+                            class="px-4 py-3 w-full border border-gray-300 rounded-lg focus:ring-primary focus:border-primary"
+                            required>
+                        <p class="mt-1 text-sm text-red-500" x-show="v.expense_date.error"
+                            x-text="v.expense_date.message"></p>
+                    </div>
+                </div>
+
+                <!-- Section 2: Category & Description -->
+                <div class="space-y-6">
+                    <!-- Category -->
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">
+                            Category <span class="text-red-500">*</span>
+                        </label>
+
+                        {% if categories %}
+                        <!-- Select dropdown (reliable, always works) -->
+                        <select x-model="category_id"
+                            class="px-4 py-3 w-full border border-gray-300 rounded-lg focus:ring-primary focus:border-primary mb-3"
+                            required>
+                            <option value="">— Select a category —</option>
+                            {% for cat in categories %}
+                            <option value="{{ cat.id }}">{{ cat.name }}</option>
+                            {% endfor %}
+                        </select>
+
+                        <!-- Visual tile grid (synced to the select via x-model) -->
+                        <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
+                            {% for cat in categories %}
+                            <div @click="category_id = '{{ cat.id }}'" :class="category_id == '{{ cat.id }}'
+                                        ? 'ring-2 ring-primary bg-indigo-50 border-primary'
+                                        : 'border-gray-200 hover:border-indigo-300'"
+                                class="cursor-pointer border rounded-lg p-3 flex items-center justify-center text-center transition-all">
+                                <span class="text-sm font-medium text-gray-800">{{ cat.name }}</span>
+                            </div>
+                            {% endfor %}
+                        </div>
+                        {% else %}
+                        <!-- No categories yet -->
+                        <div class="rounded-lg border border-dashed border-orange-300 bg-orange-50 p-4 text-center">
+                            <p class="text-sm text-orange-700 font-medium">No expense categories found.</p>
+                            <p class="text-xs text-orange-500 mt-1">
+                                {% if current_user.role == 'super_admin' %}
+                                <a href="{{ url_for('expenses.categories') }}"
+                                    class="underline font-semibold hover:text-orange-700">Create categories here</a>
+                                before recording expenses.
+                                {% else %}
+                                Please ask your administrator to set up expense categories.
+                                {% endif %}
+                            </p>
+                        </div>
+                        {% endif %}
+
+                        <p class="mt-1 text-sm text-red-500" x-show="v.category_id.error"
+                            x-text="v.category_id.message"></p>
+                    </div>
+
+                    <!-- Description -->
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">
+                            Description <span class="text-red-500">*</span>
+                        </label>
+                        <textarea x-model="description" rows="3"
+                            class="px-4 py-3 w-full border border-gray-300 rounded-lg focus:ring-primary focus:border-primary"
+                            placeholder="Detailed description of the expense..." required></textarea>
+                        <div class="flex justify-between mt-1">
+                            <p class="text-xs text-gray-500" :class="{'text-red-500': description.length < 10}">Min 10
+                                characters</p>
+                            <p class="text-xs text-gray-500"><span x-text="description.length"></span>/500</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Section 3: Payment & Reference (Optional) -->
+                <div class="pt-6 border-t border-gray-100 grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Payment Mode (Optional)</label>
+                        <select x-model="payment_mode_id"
+                            class="px-4 py-3 w-full border border-gray-300 rounded-lg focus:ring-primary focus:border-primary">
+                            <option value="">Select Payment Mode</option>
+                            {% for mode in payment_modes %}
+                            <option value="{{ mode.id }}">{{ mode.name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Reference / Receipt No.
+                            (Optional)</label>
+                        <input type="text" x-model="reference_number"
+                            class="px-4 py-3 w-full border border-gray-300 rounded-lg focus:ring-primary focus:border-primary"
+                            placeholder="e.g. TXN-12345">
+                    </div>
+                </div>
+
+                <!-- Section 4: Admin Fields (Role specific) -->
+                {% if current_user.role in ['super_admin', 'general_manager'] %}
+                <div class="pt-6 border-t border-gray-100">
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Outlet <span
+                            class="text-red-500">*</span></label>
+                    <select x-model="outlet_id"
+                        class="px-4 py-3 w-full border border-gray-300 rounded-lg focus:ring-primary focus:border-primary">
+                        <option value="">Select Outlet</option>
+                        {% for outlet in outlets %}
+                        <option value="{{ outlet.id }}">{{ outlet.name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                {% endif %}
+
+                <!-- Notes -->
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Additional Notes (Optional)</label>
+                    <textarea x-model="notes" rows="2"
+                        class="px-4 py-3 w-full border border-gray-300 rounded-lg focus:ring-primary focus:border-primary"></textarea>
+                </div>
+
+                <!-- Actions -->
+                <div class="pt-6 flex items-center justify-end space-x-4 border-t border-gray-100">
+                    <a href="{{ url_for('expenses.index') }}"
+                        class="px-6 py-3 border border-gray-300 rounded-lg text-gray-700 font-medium hover:bg-gray-50 transition-colors">
+                        Cancel
+                    </a>
+                    <button type="submit" :disabled="processing"
+                        class="px-8 py-3 bg-primary text-white rounded-lg font-medium shadow-sm hover:bg-primary/90 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary transition-all flex items-center">
+                        <svg x-show="processing" class="animate-spin -ml-1 mr-3 h-5 w-5 text-white"
+                            xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4">
+                            </circle>
+                            <path class="opacity-75" fill="currentColor"
+                                d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z">
+                            </path>
+                        </svg>
+                        <span>Record Expense</span>
+                    </button>
+                </div>
+
+            </div>
+        </div>
+    </form>
+</div>
+
+<script>
+    function expenseForm() {
+        return {
+            amount: '',
+            expense_date: '{{ today }}',
+            category_id: '',
+            description: '',
+            payment_mode_id: '',
+            reference_number: '',
+            notes: '',
+            outlet_id: '{{ current_user.outlet_id }}' || '',
+            processing: false,
+            v: {
+                amount: { error: false, message: '' },
+                expense_date: { error: false, message: '' },
+                category_id: { error: false, message: '' }
+            },
+
+            validate() {
+                let valid = true;
+
+                // Reset errors
+                this.v.amount.error = false;
+                this.v.expense_date.error = false;
+                this.v.category_id.error = false;
+
+                if (!this.amount || parseFloat(this.amount) <= 0) {
+                    this.v.amount.error = true;
+                    this.v.amount.message = 'Amount must be greater than zero';
+                    valid = false;
+                }
+
+                if (parseFloat(this.amount) > 1000000) {
+                    this.v.amount.error = true;
+                    this.v.amount.message = 'Amount exceeds maximum (₦1,000,000)';
+                    valid = false;
+                }
+
+                if (!this.expense_date) {
+                    this.v.expense_date.error = true;
+                    this.v.expense_date.message = 'Date is required';
+                    valid = false;
+                } else {
+                    const selected = new Date(this.expense_date);
+                    const today = new Date('{{ today }}');
+                    // Simple date check (ignoring time components)
+                    if (selected > today) {
+                        this.v.expense_date.error = true;
+                        this.v.expense_date.message = 'Date cannot be in the future';
+                        valid = false;
+                    }
+                }
+
+                if (!this.category_id) {
+                    this.v.category_id.error = true;
+                    this.v.category_id.message = 'Please select a category';
+                    valid = false;
+                }
+
+                if (this.description.length < 10) {
+                    // Handled by UI message, but strictly:
+                    valid = false;
+                    // Focus description if needed
+                }
+
+                return valid;
+            },
+
+            async submitForm() {
+                if (!this.validate()) return;
+                if (this.description.length < 10) return;
+
+                this.processing = true;
+
+                try {
+                    const response = await fetch("{{ url_for('expenses.create') }}", {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'X-CSRFToken': '{{ csrf_token() }}' // If configured, otherwise handled by Flask-WTF or custom
+                        },
+                        body: JSON.stringify({
+                            amount: this.amount,
+                            expense_date: this.expense_date,
+                            category_id: this.category_id,
+                            description: this.description,
+                            payment_mode_id: this.payment_mode_id,
+                            reference_number: this.reference_number,
+                            notes: this.notes,
+                            outlet_id: this.outlet_id
+                        })
+                    });
+
+                    const result = await response.json();
+
+                    if (result.success) {
+                        window.location.href = result.redirect;
+                    } else {
+                        alert(result.error || 'Failed to record expense');
+                    }
+                } catch (error) {
+                    console.error('Error:', error);
+                    alert('An error occurred. Please try again.');
+                } finally {
+                    this.processing = false;
+                }
+            }
+        }
+    }
+</script>
+{% endblock %}

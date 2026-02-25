@@ -1,0 +1,106 @@
+{% extends "base.html" %}
+
+{% block title %}Credit vs Cash Analysis{% endblock %}
+
+{% block header_title %}Credit vs Cash Analysis{% endblock %}
+
+{% block content %}
+<div class="space-y-6">
+    <!-- Filters -->
+    <div class="bg-white rounded-xl shadow-sm p-4 border border-gray-100">
+        <form method="get" class="flex flex-wrap items-end gap-4">
+            <div class="w-full sm:w-auto">
+                <label class="block text-sm font-medium text-gray-700 mb-1">Date Range</label>
+                <div class="flex items-center space-x-2">
+                    <input type="date" name="date_from" value="{{ date_from }}"
+                        class="rounded-lg border-gray-300 shadow-sm focus:border-primary focus:ring-primary text-sm">
+                    <span class="text-gray-500">to</span>
+                    <input type="date" name="date_to" value="{{ date_to }}"
+                        class="rounded-lg border-gray-300 shadow-sm focus:border-primary focus:ring-primary text-sm">
+                </div>
+            </div>
+
+            <button type="submit"
+                class="bg-primary text-white px-4 py-2 rounded-lg hover:bg-indigo-700 transition-colors text-sm font-medium">
+                Apply
+            </button>
+        </form>
+    </div>
+
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <!-- Distribution Chart (Visual Representation) -->
+        <div class="bg-white rounded-xl shadow-sm p-6 border border-gray-100">
+            <h3 class="text-lg font-semibold text-gray-800 mb-6">Payment Distribution</h3>
+
+            {% set total_revenue = 0 %}
+            {% for mode in stats %}
+            {% set total_revenue = total_revenue + mode.total %}
+            {% endfor %}
+
+            <div class="space-y-6">
+                {% for mode in stats %}
+                <div>
+                    <div class="flex justify-between items-end mb-1">
+                        <span class="text-sm font-medium text-gray-700">{{ mode.name }}</span>
+                        <span class="text-sm font-bold text-gray-900">₦{{ "{:,.2f}".format(mode.total) }}</span>
+                    </div>
+                    {% set percent = (mode.total / total_revenue * 100) if total_revenue > 0 else 0 %}
+                    <div class="w-full bg-gray-200 rounded-full h-2.5">
+                        <div class="{% if mode.is_credit %}bg-orange-500{% else %}bg-green-500{% endif %} h-2.5 rounded-full"
+                            style="width: {{ percent }}%"></div>
+                    </div>
+                    <div class="text-xs text-gray-500 mt-1 text-right">{{ "{:.1f}".format(percent) }}%</div>
+                </div>
+                {% endfor %}
+            </div>
+
+            <div class="mt-8 pt-6 border-t border-gray-100">
+                <div class="flex justify-between items-center">
+                    <span class="text-gray-600 font-medium">Total Revenue</span>
+                    <span class="text-xl font-bold text-indigo-600">₦{{ "{:,.2f}".format(total_revenue) }}</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Detailed Breakdown -->
+        <div class="bg-white rounded-xl shadow-sm p-6 border border-gray-100">
+            <h3 class="text-lg font-semibold text-gray-800 mb-4">Breakdown by Mode</h3>
+            <div class="overflow-x-auto">
+                <table class="min-w-full divide-y divide-gray-200">
+                    <thead class="bg-gray-50">
+                        <tr>
+                            <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Payment Mode
+                            </th>
+                            <th class="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase">Type</th>
+                            <th class="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase">Transactions
+                            </th>
+                            <th class="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">Total</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-gray-200">
+                        {% for mode in stats %}
+                        <tr>
+                            <td class="px-4 py-3 text-sm font-medium text-gray-900">
+                                {{ mode.name }}
+                            </td>
+                            <td class="px-4 py-3 text-center">
+                                {% if mode.is_credit %}
+                                <span
+                                    class="px-2 py-1 text-xs font-semibold rounded-full bg-orange-100 text-orange-800">Credit</span>
+                                {% else %}
+                                <span
+                                    class="px-2 py-1 text-xs font-semibold rounded-full bg-green-100 text-green-800">Cash/Bank</span>
+                                {% endif %}
+                            </td>
+                            <td class="px-4 py-3 text-sm text-gray-600 text-center">{{ mode.count }}</td>
+                            <td class="px-4 py-3 text-sm font-bold text-gray-900 text-right">₦{{
+                                "{:,.2f}".format(mode.total) }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

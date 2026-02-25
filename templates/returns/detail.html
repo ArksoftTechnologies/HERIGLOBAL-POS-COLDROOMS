@@ -1,0 +1,143 @@
+{% extends "base.html" %}
+
+{% block title %}Return Receipt {{ return_record.return_number }} - {{ app_name }}{% endblock %}
+
+{% block content %}
+<div class="container mx-auto px-4 py-6">
+    <div class="flex items-center justify-between mb-6 print:hidden">
+        <div>
+            <h1 class="text-3xl font-bold text-gray-900">Return Receipt</h1>
+            <p class="text-gray-600 mt-1">{{ return_record.return_number }}</p>
+        </div>
+        <div class="flex space-x-3">
+            <a href="{{ url_for('returns.index') }}"
+                class="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 font-medium">
+                Back to List
+            </a>
+            <button onclick="window.print()"
+                class="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 font-medium flex items-center">
+                <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />
+                </svg>
+                Print Receipt
+            </button>
+            <a href="{{ url_for('returns.download_return_pdf', id=return_record.id) }}"
+                class="px-4 py-2 bg-white text-gray-700 border border-gray-300 rounded-lg hover:bg-gray-50 font-medium flex items-center">
+                <i data-lucide="download" class="w-5 h-5 mr-2"></i>
+                Download PDF
+            </a>
+        </div>
+    </div>
+
+    <!-- Receipt Card -->
+    <div
+        class="max-w-3xl mx-auto bg-white shadow-lg rounded-lg overflow-hidden border border-gray-200 print:shadow-none print:border-none">
+
+        <!-- Header -->
+        <div class="px-8 py-6 border-b border-gray-200 text-center bg-gray-50 print:bg-white">
+            <h2 class="text-2xl font-bold text-gray-900 uppercase tracking-widest">{{ app_name }}</h2>
+            <p class="text-gray-600 mt-1">{{ return_record.outlet.name }}</p>
+            <p class="text-sm text-gray-500">{{ return_record.outlet.address }}</p>
+            <div
+                class="mt-4 inline-block bg-white px-4 py-1 rounded border border-gray-300 text-sm font-mono text-gray-600 print:border-none">
+                RETURN RECEIPT
+            </div>
+        </div>
+
+        <!-- Meta Data -->
+        <div class="grid grid-cols-2 gap-8 px-8 py-6 border-b border-gray-200">
+            <div>
+                <p class="text-xs text-gray-500 uppercase tracking-wide mb-1">Return Details</p>
+                <p class="font-bold text-gray-900">{{ return_record.return_number }}</p>
+                <p class="text-sm text-gray-600">{{ return_record.return_date.strftime('%Y-%m-%d %H:%M') }}</p>
+                <p class="text-sm text-gray-600">Processed by: {{ return_record.processor.name }}</p>
+            </div>
+            <div class="text-right">
+                <p class="text-xs text-gray-500 uppercase tracking-wide mb-1">Original Sale</p>
+                <a href="{{ url_for('sales.detail', id=return_record.sale_id) }}"
+                    class="font-bold text-indigo-600 hover:underline print:text-black print:no-underline">
+                    {{ return_record.sale.sale_number }}
+                </a>
+                <p class="text-sm text-gray-600">Customer: {{ return_record.customer.name }}</p>
+                <p class="text-sm text-gray-600">{{ return_record.customer.phone }}</p>
+            </div>
+        </div>
+
+        <!-- Items Table -->
+        <div class="px-8 py-6">
+            <h3 class="text-sm font-bold text-gray-900 uppercase mb-4">Returned Items</h3>
+            <table class="w-full text-sm">
+                <thead>
+                    <tr class="border-b border-gray-200 text-left">
+                        <th class="pb-2 font-semibold text-gray-600">Product</th>
+                        <th class="pb-2 font-semibold text-gray-600">Condition/Reason</th>
+                        <th class="pb-2 text-right font-semibold text-gray-600">Qty</th>
+                        <th class="pb-2 text-right font-semibold text-gray-600">Refund</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-gray-100">
+                    {% for item in return_record.items %}
+                    <tr>
+                        <td class="py-3">
+                            <span class="block font-medium text-gray-900">{{ item.product.name }}</span>
+                            <span class="text-xs text-gray-500">{{ item.product.sku }}</span>
+                        </td>
+                        <td class="py-3">
+                            <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium 
+                                {% if item.condition == 'resellable' %}bg-green-100 text-green-800
+                                {% else %}bg-red-100 text-red-800{% endif %}">
+                                {{ item.condition|capitalize }}
+                            </span>
+                            <div class="text-xs text-gray-500 mt-1">{{ item.reason|replace('_', ' ')|capitalize }}</div>
+                        </td>
+                        <td class="py-3 text-right">{{ item.quantity_returned }}</td>
+                        <td class="py-3 text-right font-medium">₦{{ "%.2f"|format(item.refund_amount) }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Totals -->
+        <div class="px-8 py-6 bg-gray-50 border-t border-gray-200 print:bg-white">
+            <div class="flex justify-between items-center mb-2">
+                <span class="text-gray-600">Refund Method:</span>
+                <span class="font-medium text-gray-900 capitalize">{{ return_record.refund_method.replace('_', ' ')
+                    }}</span>
+            </div>
+
+            {% if return_record.refund_method == 'split' %}
+            <div class="mb-4 pl-4 border-l-2 border-gray-300 text-sm">
+                {% for payment in return_record.payments %}
+                <div class="flex justify-between text-gray-600">
+                    <span>- {{ payment.payment_mode.name }}:</span>
+                    <span>₦{{ "%.2f"|format(payment.amount) }}</span>
+                </div>
+                {% endfor %}
+            </div>
+            {% endif %}
+
+            <div class="flex justify-between items-center pt-4 border-t border-gray-200">
+                <span class="text-2xl font-bold text-gray-900">Total Refund</span>
+                <span class="text-2xl font-bold text-indigo-600 print:text-black">
+                    ₦{{ "%.2f"|format(return_record.total_refund_amount) }}
+                </span>
+            </div>
+
+            {% if return_record.notes %}
+            <div class="mt-6 pt-4 border-t border-gray-200">
+                <p class="text-xs text-gray-500 uppercase tracking-wide mb-1">Notes</p>
+                <p class="text-sm text-gray-700 italic">{{ return_record.notes }}</p>
+            </div>
+            {% endif %}
+        </div>
+
+        <!-- Footer -->
+        <div class="px-8 py-6 text-center text-xs text-gray-500 border-t border-gray-200 print:block hidden">
+            <p>Thank you for your business.</p>
+            <p>Generated on {{ return_record.created_at.strftime('%Y-%m-%d %H:%M:%S') }}</p>
+        </div>
+    </div>
+</div>
+{% endblock %}

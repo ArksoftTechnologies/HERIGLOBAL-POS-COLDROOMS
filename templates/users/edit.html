@@ -1,0 +1,94 @@
+{% extends "base.html" %}
+
+{% block title %}Edit User: {{ user.username }} - {{ app_name }}{% endblock %}
+
+{% block content %}
+<div class="container mx-auto px-4 py-8">
+    <div class="max-w-2xl mx-auto bg-white rounded-lg shadow-md overflow-hidden">
+        <div class="bg-indigo-600 px-6 py-4 flex justify-between items-center">
+            <h2 class="text-xl font-bold text-white">Edit User: {{ user.username }}</h2>
+            <span class="px-2 py-1 text-xs rounded-full bg-white text-indigo-800 font-bold">
+                {{ user.role.replace('_', ' ').title() }}
+            </span>
+        </div>
+
+        <form action="{{ url_for('users.edit_user', id=user.id) }}" method="POST" class="p-6">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+            <div class="mb-4">
+                <label for="full_name" class="block text-sm font-medium text-gray-700 mb-1">Full Name</label>
+                <input type="text" name="full_name" id="full_name" value="{{ user.full_name }}" required
+                    class="w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
+            </div>
+
+            <div class="mb-4">
+                <label for="email" class="block text-sm font-medium text-gray-700 mb-1">Email</label>
+                <input type="email" name="email" id="email" value="{{ user.email or '' }}"
+                    class="w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
+            </div>
+
+            <div class="mb-4 bg-yellow-50 p-4 rounded-md border border-yellow-200">
+                <label for="new_password" class="block text-sm font-medium text-yellow-800 mb-1">Change Password</label>
+                <input type="password" name="new_password" id="new_password" minlength="8"
+                    placeholder="Leave blank to keep current password"
+                    class="w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
+            </div>
+
+            <div class="mb-6">
+                <label for="role" class="block text-sm font-medium text-gray-700 mb-1">Role</label>
+                <select name="role" id="role" required
+                    class="w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+                    onchange="toggleOutletField()">
+                    <option value="super_admin" {% if user.role=='super_admin' %}selected{% endif %}>Super Admin
+                    </option>
+                    <option value="general_manager" {% if user.role=='general_manager' %}selected{% endif %}>General
+                        Manager</option>
+                    <option value="accountant" {% if user.role=='accountant' %}selected{% endif %}>Accountant</option>
+                    <option value="outlet_admin" {% if user.role=='outlet_admin' %}selected{% endif %}>Outlet Admin
+                    </option>
+                    <option value="sales_rep" {% if user.role=='sales_rep' %}selected{% endif %}>Sales Rep</option>
+                </select>
+            </div>
+
+            <div id="outlet_field"
+                class="mb-6 {% if user.role not in ['outlet_admin', 'sales_rep'] %}hidden{% endif %}">
+                <label for="outlet_id" class="block text-sm font-medium text-gray-700 mb-1">Assign to Outlet</label>
+                <select name="outlet_id" id="outlet_id"
+                    class="w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
+                    <option value="">Select an Outlet</option>
+                    {% for outlet in outlets %}
+                    <option value="{{ outlet.id }}" {% if user.outlet_id==outlet.id %}selected{% endif %}>{{ outlet.name
+                        }} ({{ outlet.code }})</option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <div class="flex items-center justify-end border-t pt-4">
+                <a href="{{ url_for('users.view_user', id=user.id) }}"
+                    class="text-gray-600 hover:text-gray-900 mr-4">Cancel</a>
+                <button type="submit"
+                    class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 px-6 rounded focus:outline-none focus:shadow-outline">
+                    Update User
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+    function toggleOutletField() {
+        const role = document.getElementById('role').value;
+        const outletField = document.getElementById('outlet_field');
+        const outletSelect = document.getElementById('outlet_id');
+
+        if (role === 'outlet_admin' || role === 'sales_rep') {
+            outletField.classList.remove('hidden');
+            outletSelect.required = true;
+        } else {
+            outletField.classList.add('hidden');
+            outletSelect.required = false;
+            outletSelect.value = "";
+        }
+    }
+</script>
+{% endblock %}

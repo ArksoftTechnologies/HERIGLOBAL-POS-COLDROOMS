@@ -1,0 +1,497 @@
+{% extends "base.html" %}
+
+{% block title %}Executive Dashboard{% endblock %}
+
+{% block header_title %}Executive Dashboard{% endblock %}
+
+{% block content %}
+<div x-data="adminDashboard()" x-init="init()" class="space-y-6">
+
+    <!-- Executive Summary Cards -->
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+        <template x-for="metric in summaryMetrics" :key="metric.label">
+            <div
+                class="bg-white rounded-xl shadow-sm p-6 border-l-4 border-indigo-500 hover:shadow-md transition-shadow">
+                <p class="text-sm font-medium text-gray-500 uppercase tracking-wider" x-text="metric.label"></p>
+                <div class="flex items-baseline mt-2">
+                    <p class="text-3xl font-bold text-gray-900" x-text="formatCurrency(metric.value)"></p>
+                    <template x-if="metric.label === 'Transactions'">
+                        <span class="ml-1 text-gray-500 text-sm">txns</span>
+                    </template>
+                </div>
+                <div class="mt-2 flex items-center text-sm">
+                    <template x-if="metric.growth !== undefined">
+                        <span
+                            :class="metric.growth >= 0 ? 'text-green-600 bg-green-50 px-2 py-0.5 rounded-full' : 'text-red-600 bg-red-50 px-2 py-0.5 rounded-full'">
+                            <span x-text="metric.growth >= 0 ? '↑' : '↓'"></span>
+                            <span x-text="Math.abs(metric.growth).toFixed(1) + '%'"></span>
+                        </span>
+                    </template>
+                    <span class="text-gray-400 ml-2">vs last period</span>
+                </div>
+            </div>
+        </template>
+    </div>
+
+    <!-- Critical Alerts -->
+    <template x-if="alerts.length > 0">
+        <div class="bg-white rounded-xl shadow-sm border border-red-100 overflow-hidden">
+            <div class="px-6 py-4 border-b border-red-50 bg-red-50 flex justify-between items-center">
+                <h3 class="text-lg font-semibold text-red-800 flex items-center">
+                    <i data-lucide="alert-triangle" class="w-5 h-5 mr-2"></i>
+                    Critical Alerts
+                </h3>
+                <span class="bg-red-200 text-red-800 text-xs font-bold px-2 py-1 rounded-full"
+                    x-text="alerts.length"></span>
+            </div>
+            <div class="divide-y divide-gray-100">
+                <template x-for="alert in alerts" :key="alert.message">
+                    <div class="px-6 py-4 flex items-center justify-between hover:bg-gray-50 transition-colors">
+                        <div class="flex items-center">
+                            <div class="p-2 rounded-full mr-4" :class="{
+                                    'bg-red-100 text-red-600': alert.type === 'critical',
+                                    'bg-yellow-100 text-yellow-600': alert.type === 'warning',
+                                    'bg-blue-100 text-blue-600': alert.type === 'info'
+                                 }">
+                                <i :data-lucide="getAlertIcon(alert.category)" class="w-5 h-5"></i>
+                            </div>
+                            <div>
+                                <p class="text-sm font-medium text-gray-900" x-text="alert.message"></p>
+                                <p class="text-xs text-gray-500" x-text="alert.category.toUpperCase()"></p>
+                            </div>
+                        </div>
+                        <a :href="alert.action_url"
+                            class="text-sm font-medium text-indigo-600 hover:text-indigo-900 flex items-center">
+                            View Details <i data-lucide="chevron-right" class="w-4 h-4 ml-1"></i>
+                        </a>
+                    </div>
+                </template>
+            </div>
+        </div>
+    </template>
+
+    <!-- Charts Section -->
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <!-- Sales Trend Chart -->
+        <div class="bg-white rounded-xl shadow-sm p-6 border border-gray-100">
+            <div class="flex justify-between items-center mb-6">
+                <h3 class="text-lg font-semibold text-gray-800">Sales Trend (Last 30 Days)</h3>
+                <select
+                    class="text-sm border-gray-300 rounded-md shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+                    @change="updateTrendDays($event.target.value)">
+                    <option value="7">Last 7 Days</option>
+                    <option value="30" selected>Last 30 Days</option>
+                    <option value="90">Last 90 Days</option>
+                </select>
+            </div>
+            <div class="relative h-72">
+                <canvas id="salesTrendChart"></canvas>
+            </div>
+        </div>
+
+        <!-- Outlet Performance Comparison -->
+        <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden flex flex-col">
+            <div class="px-6 py-4 border-b border-gray-100">
+                <h3 class="text-lg font-semibold text-gray-800">Outlet Rankings</h3>
+            </div>
+            <div class="overflow-x-auto flex-1">
+                <table class="min-w-full divide-y divide-gray-200">
+                    <thead class="bg-gray-50">
+                        <tr>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Rank</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Outlet</th>
+                            <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">Revenue</th>
+                            <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">Margin</th>
+                            <th class="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase">Status</th>
+                        </tr>
+                    </thead>
+                    <tbody class="bg-white divide-y divide-gray-200">
+                        <template x-for="outlet in outletPerformance" :key="outlet.outlet_id">
+                            <tr class="hover:bg-gray-50 cursor-pointer transition-colors"
+                                @click="viewOutletDetails(outlet.outlet_id)">
+                                <td class="px-6 py-4 whitespace-nowrap">
+                                    <span class="text-lg" x-text="getRankIcon(outlet.rank)"></span>
+                                </td>
+                                <td class="px-6 py-4 whitespace-nowrap">
+                                    <div class="flex flex-col">
+                                        <span class="font-medium text-gray-900" x-text="outlet.outlet_name"></span>
+                                        <span class="text-xs text-gray-500" x-text="outlet.outlet_code"></span>
+                                    </div>
+                                </td>
+                                <td class="px-6 py-4 whitespace-nowrap text-right font-bold text-gray-900"
+                                    x-text="formatCurrency(outlet.revenue)"></td>
+                                <td class="px-6 py-4 whitespace-nowrap text-right text-gray-600"
+                                    x-text="outlet.profit_margin.toFixed(1) + '%'"></td>
+                                <td class="px-6 py-4 whitespace-nowrap text-center">
+                                    <span class="px-2 py-1 text-xs font-semibold rounded-full"
+                                        :class="getStatusClass(outlet.profit_margin)"
+                                        x-text="getStatusLabel(outlet.profit_margin)">
+                                    </span>
+                                </td>
+                            </tr>
+                        </template>
+                    </tbody>
+                </table>
+            </div>
+            <div class="px-6 py-3 bg-gray-50 border-t border-gray-100 text-center">
+                <a href="{{ url_for('outlets.index') }}"
+                    class="text-sm font-medium text-indigo-600 hover:text-indigo-900">View All Outlets</a>
+            </div>
+        </div>
+    </div>
+</div>
+
+
+    <!-- ========================================================= -->
+    <!-- Recent Stock Receipts (InventoryAdjustment positive qty)   -->
+    <!-- ========================================================= -->
+    <div x-data="stockReceivesWidget()" x-init="init()" class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+        <!-- Header -->
+        <div class="px-6 py-4 border-b border-gray-100 flex flex-wrap items-center justify-between gap-3">
+            <div class="flex items-center gap-3">
+                <div class="p-2 bg-emerald-50 rounded-lg">
+                    <i data-lucide="package-check" class="w-5 h-5 text-emerald-600"></i>
+                </div>
+                <div>
+                    <h3 class="text-base font-semibold text-gray-800">Recent Stock Receipts</h3>
+                    <p class="text-xs text-gray-400">Positive inventory adjustments in warehouse &amp; outlets</p>
+                </div>
+                <span class="bg-emerald-100 text-emerald-800 text-xs font-bold px-2 py-0.5 rounded-full"
+                      x-text="(stockData.count || 0) + ' records'"></span>
+            </div>
+            <div class="flex items-center gap-2 flex-wrap">
+                <label class="text-xs text-gray-500 font-medium">From:</label>
+                <input type="date" x-model="filtFrom" @change="reload()"
+                       class="border border-gray-200 rounded-md px-2 py-1 text-xs focus:ring-emerald-500 focus:border-emerald-500">
+                <label class="text-xs text-gray-500 font-medium">To:</label>
+                <input type="date" x-model="filtTo" @change="reload()"
+                       class="border border-gray-200 rounded-md px-2 py-1 text-xs focus:ring-emerald-500 focus:border-emerald-500">
+                <span class="text-xs bg-gray-50 border border-gray-200 px-2 py-1 rounded-md font-semibold text-gray-500">
+                    Total: <span class="text-emerald-700" x-text="(stockData.total_units_received || 0) + ' units'"></span>
+                </span>
+            </div>
+        </div>
+        <!-- Body -->
+        <div class="overflow-x-auto">
+            <template x-if="loading">
+                <div class="flex items-center justify-center py-10 text-gray-400 text-sm gap-2">
+                    <i data-lucide="loader-circle" class="w-5 h-5"></i> Loading...
+                </div>
+            </template>
+            <template x-if="!loading && (!stockData.adjustments || stockData.adjustments.length === 0)">
+                <div class="flex flex-col items-center justify-center py-10 text-gray-400 text-sm">
+                    <i data-lucide="inbox" class="w-8 h-8 mb-2 text-gray-300"></i>
+                    No stock receipts found for this period.
+                </div>
+            </template>
+            <template x-if="!loading && stockData.adjustments && stockData.adjustments.length > 0">
+                <table class="min-w-full divide-y divide-gray-200">
+                    <thead class="bg-gray-50">
+                        <tr>
+                            <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Date</th>
+                            <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Product</th>
+                            <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Outlet</th>
+                            <th class="px-4 py-3 text-center text-xs font-semibold text-gray-500 uppercase tracking-wider">Before</th>
+                            <th class="px-4 py-3 text-center text-xs font-semibold text-gray-500 uppercase tracking-wider">Added</th>
+                            <th class="px-4 py-3 text-center text-xs font-semibold text-gray-500 uppercase tracking-wider">After</th>
+                            <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Type</th>
+                            <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Reference</th>
+                            <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">By</th>
+                        </tr>
+                    </thead>
+                    <tbody class="bg-white divide-y divide-gray-100">
+                        <template x-for="row in stockData.adjustments" :key="row.id">
+                            <tr class="hover:bg-gray-50 transition-colors">
+                                <td class="px-4 py-3 whitespace-nowrap">
+                                    <p class="text-xs font-medium text-gray-800" x-text="row.date"></p>
+                                    <p class="text-xs text-gray-400" x-text="row.time"></p>
+                                </td>
+                                <td class="px-4 py-3">
+                                    <p class="text-sm font-medium text-gray-900" x-text="row.product_name"></p>
+                                    <p class="text-xs text-gray-400" x-text="row.product_sku"></p>
+                                </td>
+                                <td class="px-4 py-3 whitespace-nowrap">
+                                    <div class="flex items-center gap-1.5">
+                                        <template x-if="row.is_warehouse">
+                                            <span class="px-1.5 py-0.5 rounded text-xs font-semibold bg-indigo-50 text-indigo-700">WH</span>
+                                        </template>
+                                        <span class="text-sm text-gray-700" x-text="row.outlet_name"></span>
+                                    </div>
+                                </td>
+                                <td class="px-4 py-3 text-center text-sm text-gray-500" x-text="row.qty_before"></td>
+                                <td class="px-4 py-3 text-center">
+                                    <span class="font-bold text-emerald-600 text-sm" x-text="'+' + row.qty_added"></span>
+                                </td>
+                                <td class="px-4 py-3 text-center text-sm font-semibold text-gray-800" x-text="row.qty_after"></td>
+                                <td class="px-4 py-3 whitespace-nowrap">
+                                    <span class="px-2 py-0.5 rounded text-xs font-medium bg-blue-50 text-blue-700" x-text="row.adjustment_type"></span>
+                                </td>
+                                <td class="px-4 py-3 text-xs text-gray-500 font-mono" x-text="row.reference"></td>
+                                <td class="px-4 py-3 text-sm text-gray-700" x-text="row.performed_by"></td>
+                            </tr>
+                        </template>
+                    </tbody>
+                </table>
+            </template>
+        </div>
+    </div>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+    
+    function stockReceivesWidget() {
+        return {
+            loading: true,
+            filtFrom: '',
+            filtTo: '',
+            stockData: { adjustments: [], count: 0, total_units_received: 0 },
+
+            init() {
+                const today = new Date();
+                const prior = new Date(); prior.setDate(today.getDate() - 30);
+                this.filtTo   = today.toISOString().slice(0, 10);
+                this.filtFrom = prior.toISOString().slice(0, 10);
+                this.reload();
+            },
+
+            async reload() {
+                this.loading = true;
+                try {
+                    const params = new URLSearchParams();
+                    if (this.filtFrom) params.set('date_from', this.filtFrom);
+                    if (this.filtTo)   params.set('date_to',   this.filtTo);
+                    params.set('limit', 50);
+                    const res = await fetch("{{ url_for('admin_dashboard.api_stock_receives') }}?" + params);
+                    if (!res.ok) throw new Error('Request failed');
+                    this.stockData = await res.json();
+                } catch (e) {
+                    console.error('Stock receives widget error:', e);
+                    this.stockData = { adjustments: [], count: 0, total_units_received: 0 };
+                } finally {
+                    this.loading = false;
+                    this.$nextTick(() => lucide.createIcons());
+                }
+            }
+        };
+    }
+
+    function adminDashboard() {
+        return {
+            summaryMetrics: [],
+            outletPerformance: [],
+            salesTrend: [],
+            alerts: [],
+            salesTrendChart: null,
+
+            async init() {
+                await this.loadDashboardData();
+                this.initCharts();
+                // Lucide icons are re-initialized automatically by base.html usually, 
+                // but if data loads async, we might need to trigger it manually or use x-effect
+                this.$nextTick(() => {
+                    lucide.createIcons();
+                });
+            },
+
+            async loadDashboardData() {
+                try {
+                    // Parallel fetch for potential performance gain
+                    const [summaryRes, outletsRes, trendsRes, alertsRes] = await Promise.all([
+                        fetch('{{ url_for("admin_dashboard.api_summary") }}'),
+                        fetch('{{ url_for("admin_dashboard.api_outlets") }}'),
+                        fetch('{{ url_for("admin_dashboard.api_trends") }}?days=30'),
+                        fetch('{{ url_for("admin_dashboard.api_alerts") }}')
+                    ]);
+
+                    if (!summaryRes.ok || !outletsRes.ok || !trendsRes.ok || !alertsRes.ok) {
+                        throw new Error('One or more API requests failed');
+                    }
+
+                    const summary = await summaryRes.json();
+                    this.summaryMetrics = this.formatSummaryMetrics(summary);
+
+                    this.outletPerformance = await outletsRes.json();
+                    this.salesTrend = await trendsRes.json();
+                    this.alerts = await alertsRes.json();
+
+                    this.$nextTick(() => {
+                        lucide.createIcons();
+                        this.updateCharts();
+                    });
+
+                } catch (error) {
+                    console.error('Error loading dashboard data:', error);
+                    // Optionally show error toast
+                }
+            },
+
+            formatSummaryMetrics(data) {
+                return [
+                    { label: 'Total Revenue', value: data.total_revenue, growth: data.revenue_growth },
+                    { label: 'Transactions', value: data.total_transactions, growth: 0 }, // Growth placeholder
+                    { label: 'Avg Transaction', value: data.avg_transaction_value, growth: 0 },
+                    { label: 'Outstanding Credit', value: data.total_outstanding_credit, growth: 0 }
+                ];
+            },
+
+            formatCurrency(amount) {
+                if (amount === undefined || amount === null) return '₦0';
+                return '₦' + parseFloat(amount).toFixed(0).replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+            },
+
+            getRankIcon(rank) {
+                const icons = { 1: '🥇', 2: '🥈', 3: '🥉' };
+                return icons[rank] || '#' + rank;
+            },
+
+            getAlertIcon(category) {
+                const map = {
+                    'inventory': 'package',
+                    'remittance': 'wallet',
+                    'credit': 'credit-card',
+                    'sales': 'shopping-cart'
+                };
+                return map[category] || 'alert-circle';
+            },
+
+            getStatusClass(margin) {
+                if (margin >= 90) return 'bg-green-100 text-green-800';
+                if (margin >= 80) return 'bg-blue-100 text-blue-800';
+                if (margin >= 70) return 'bg-yellow-100 text-yellow-800';
+                return 'bg-red-100 text-red-800';
+            },
+
+            getStatusLabel(margin) {
+                if (margin >= 90) return 'Excellent';
+                if (margin >= 80) return 'Good';
+                if (margin >= 70) return 'Average';
+                return 'Attention';
+            },
+
+            viewOutletDetails(outletId) {
+                window.location.href = '{{ url_for("outlets.index") }}'.replace('/outlets', '/outlets/' + outletId);
+            },
+
+            async updateTrendDays(days) {
+                try {
+                    const res = await fetch(`{{ url_for("admin_dashboard.api_trends") }}?days=${days}`);
+                    this.salesTrend = await res.json();
+                    this.updateCharts();
+                } catch (e) {
+                    console.error(e);
+                }
+            },
+
+            initCharts() {
+                const ctx = document.getElementById('salesTrendChart');
+                if (!ctx) return;
+
+                this.salesTrendChart = new Chart(ctx.getContext('2d'), {
+                    type: 'line',
+                    data: {
+                        labels: [],
+                        datasets: [{
+                            label: 'Total Revenue',
+                            data: [],
+                            borderColor: '#4f46e5', // Indigo 600
+                            backgroundColor: 'rgba(79, 70, 229, 0.1)',
+                            borderWidth: 2,
+                            tension: 0.3,
+                            fill: true,
+                            pointBackgroundColor: '#ffffff',
+                            pointBorderColor: '#4f46e5',
+                            pointRadius: 4,
+                            pointHoverRadius: 6
+                        },
+                        {
+                            label: 'Transactions',
+                            data: [],
+                            borderColor: '#10b981', // Emerald 500
+                            backgroundColor: 'transparent',
+                            borderWidth: 2,
+                            borderDash: [5, 5],
+                            tension: 0.3,
+                            yAxisID: 'y1',
+                            pointRadius: 0,
+                            pointHoverRadius: 4
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        interaction: {
+                            mode: 'index',
+                            intersect: false,
+                        },
+                        plugins: {
+                            legend: {
+                                position: 'top',
+                                align: 'end',
+                                labels: { usePointStyle: true, boxWidth: 8 }
+                            },
+                            tooltip: {
+                                callbacks: {
+                                    label: function (context) {
+                                        let label = context.dataset.label || '';
+                                        if (label) {
+                                            label += ': ';
+                                        }
+                                        if (context.parsed.y !== null) {
+                                            if (context.datasetIndex === 0) {
+                                                label += '₦' + context.parsed.y.toLocaleString();
+                                            } else {
+                                                label += context.parsed.y;
+                                            }
+                                        }
+                                        return label;
+                                    }
+                                }
+                            }
+                        },
+                        scales: {
+                            y: {
+                                type: 'linear',
+                                display: true,
+                                position: 'left',
+                                beginAtZero: true,
+                                grid: { borderDash: [2, 4], color: '#f3f4f6' },
+                                ticks: {
+                                    callback: function (value) {
+                                        if (value >= 1000000) return '₦' + (value / 1000000).toFixed(1) + 'M';
+                                        if (value >= 1000) return '₦' + (value / 1000).toFixed(0) + 'k';
+                                        return '₦' + value;
+                                    }
+                                }
+                            },
+                            y1: {
+                                type: 'linear',
+                                display: true,
+                                position: 'right',
+                                beginAtZero: true,
+                                grid: { drawOnChartArea: false },
+                                min: 0
+                            },
+                            x: {
+                                grid: { display: false }
+                            }
+                        }
+                    }
+                });
+            },
+
+            updateCharts() {
+                if (this.salesTrendChart) {
+                    this.salesTrendChart.data.labels = this.salesTrend.map(d => {
+                        // Format date to short readable format e.g., "Feb 14"
+                        const date = new Date(d.date);
+                        return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+                    });
+                    this.salesTrendChart.data.datasets[0].data = this.salesTrend.map(d => d.revenue);
+                    this.salesTrendChart.data.datasets[1].data = this.salesTrend.map(d => d.transactions);
+                    this.salesTrendChart.update();
+                }
+            }
+        }
+    }
+</script>
+{% endblock %}

@@ -1,0 +1,308 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Receipt{% endblock %} - {{ app_name }}</title>
+
+    <!-- Tailwind CSS for top-notch modern styling (overriding old xhtml2pdf table layouts where possible) -->
+    <script src="https://cdn.tailwindcss.com"></script>
+
+    <!-- html2pdf.js for frontend PDF generation -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+
+    <style>
+        /* Base styling for the PDF container */
+        body {
+            font-family: 'Inter', system-ui, -apple-system, sans-serif;
+            background-color: #f3f4f6;
+            /* Subtle gray background while generating */
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            justify-content: center;
+        }
+
+        #pdf-content {
+            background-color: white;
+            padding: 40px;
+            width: 210mm;
+            /* A4 width */
+            min-height: 297mm;
+            /* A4 height */
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+            /* Ensure text renders crisply for the PDF engine */
+            -webkit-font-smoothing: antialiased;
+            color: #1f2937;
+        }
+
+        /* Improved Header */
+        .header {
+            text-align: center;
+            border-bottom: 2px solid #4F46E5;
+            /* Indigo-600 */
+            padding-bottom: 20px;
+            margin-bottom: 30px;
+        }
+
+        .company-name {
+            font-size: 28pt;
+            font-weight: 800;
+            color: #4F46E5;
+            letter-spacing: -0.025em;
+        }
+
+        .company-tagline {
+            font-size: 11pt;
+            color: #6b7280;
+            margin-top: 4px;
+        }
+
+        .outlet-info {
+            font-size: 10pt;
+            color: #4b5563;
+            margin-top: 10px;
+            line-height: 1.5;
+        }
+
+        .receipt-title {
+            text-align: center;
+            font-size: 18pt;
+            font-weight: 700;
+            margin: 20px 0;
+            color: #111827;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        /* Legacy support for existing templates (tables) but modernized */
+        .info-table {
+            width: 100%;
+            background-color: #f9fafb;
+            border: 1px solid #e5e7eb;
+            border-radius: 8px;
+            margin-bottom: 30px;
+            overflow: hidden;
+            border-spacing: 0;
+            /* Important for border-radius on tables */
+            border-collapse: separate;
+        }
+
+        .info-table td {
+            padding: 12px 16px;
+            vertical-align: top;
+            border-bottom: 1px solid #f3f4f6;
+        }
+
+        .info-table tr:last-child td {
+            border-bottom: none;
+        }
+
+        .info-label {
+            font-weight: 600;
+            color: #4b5563;
+            width: 35%;
+        }
+
+        .items-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 20px 0 30px 0;
+        }
+
+        .items-table th {
+            background-color: #4F46E5;
+            color: white;
+            padding: 12px 16px;
+            text-align: left;
+            font-weight: 600;
+            font-size: 10pt;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        .items-table td {
+            padding: 12px 16px;
+            border-bottom: 1px solid #e5e7eb;
+            color: #374151;
+        }
+
+        .items-table tr:nth-child(even) {
+            background-color: #f8fafc;
+        }
+
+        .text-right {
+            text-align: right;
+        }
+
+        .text-center {
+            text-align: center;
+        }
+
+        .total-section {
+            margin-top: 30px;
+            border-top: 2px solid #e5e7eb;
+            padding-top: 20px;
+        }
+
+        .total-table {
+            width: 100%;
+            max-width: 400px;
+            margin-left: auto;
+        }
+
+        .total-table td {
+            padding: 8px 16px;
+            font-size: 11pt;
+        }
+
+        .grand-total {
+            font-size: 16pt;
+            font-weight: 800;
+            color: #4F46E5;
+            border-top: 2px solid #4F46E5;
+            background-color: #e0e7ff;
+        }
+
+        .grand-total td {
+            padding: 12px 16px;
+        }
+
+        .footer {
+            margin-top: 50px;
+            text-align: center;
+            font-size: 10pt;
+            color: #6b7280;
+            border-top: 1px solid #e5e7eb;
+            padding-top: 20px;
+            line-height: 1.6;
+        }
+
+        .money {
+            font-weight: 700;
+            font-variant-numeric: tabular-nums;
+        }
+
+        .badge {
+            padding: 4px 10px;
+            background-color: #e5e7eb;
+            color: #374151;
+            border-radius: 9999px;
+            font-size: 9pt;
+            font-weight: 600;
+            display: inline-block;
+        }
+
+        /* Loading overlay */
+        #generating-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: rgba(255, 255, 255, 0.9);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            z-index: 9999;
+            font-family: 'Inter', sans-serif;
+        }
+
+        .spinner {
+            border: 4px solid #e5e7eb;
+            border-top: 4px solid #4F46E5;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin-bottom: 15px;
+        }
+
+        @keyframes spin {
+            0% {
+                transform: rotate(0deg);
+            }
+
+            100% {
+                transform: rotate(360deg);
+            }
+        }
+    </style>
+    {% block extra_styles %}{% endblock %}
+</head>
+
+<body>
+    <!-- Overlay shown while building the PDF -->
+    <div id="generating-overlay">
+        <div class="spinner"></div>
+        <h2 style="color: #111827; font-size: 1.25rem; font-weight: 600;">Generating Premium PDF...</h2>
+        <p style="color: #6b7280; margin-top: 8px;">Please wait, your download will start automatically.</p>
+    </div>
+
+    <!-- The actual content that gets converted -->
+    <div id="pdf-content">
+        <!-- Header -->
+        <div class="header">
+            <div class="company-name">{{ company_name }}</div>
+            <div class="company-tagline">{{ company_tagline|default('Your Trusted POS Solution') }}</div>
+            <div class="outlet-info">
+                <strong>{{ outlet.name }}</strong><br>
+                {{ outlet.address }}, {{ outlet.city }}, {{ outlet.state }}<br>
+                {% if outlet.phone %}Tel: {{ outlet.phone }}{% endif %}
+                {% if outlet.email %} | Email: {{ outlet.email }}{% endif %}
+            </div>
+        </div>
+
+        {% block content %}{% endblock %}
+
+        <!-- Footer -->
+        <div class="footer">
+            <strong style="color: #374151;">Thank you for your business!</strong><br>
+            This is a computer-generated document.<br>
+            Generated on: {{ generated_at.strftime('%B %d, %Y at %I:%M %p') }}
+        </div>
+    </div>
+
+    <!-- Auto-Generation Script -->
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            // Options for html2pdf
+            var element = document.getElementById('pdf-content');
+            var opt = {
+                margin: 0,
+                // Default filename (can be overridden by setting document.title dynamically if desired)
+                filename: '{% block filename %}Receipt{% endblock %}.pdf',
+                image: { type: 'jpeg', quality: 1.0 },
+                html2canvas: { scale: 2, useCORS: true, letterRendering: true },
+                jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
+            };
+
+            // Generate and download
+            html2pdf().set(opt).from(element).save().then(function () {
+                // Change overlay message after generation
+                var overlay = document.getElementById('generating-overlay');
+                overlay.innerHTML = `
+                    <div style="color: #059669; margin-bottom: 10px;">
+                        <svg class="w-12 h-12" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                    </div>
+                    <h2 style="color: #111827; font-size: 1.25rem; font-weight: 600;">Download Complete</h2>
+                    <p style="color: #6b7280; margin-top: 8px;">You can now close this tab.</p>
+                    <button onclick="window.close()" style="margin-top: 20px; background-color: #4F46E5; color: white; padding: 8px 20px; border-radius: 6px; border: none; cursor: pointer; font-weight: 500;">Close Tab</button>
+                    <button onclick="history.back()" style="margin-top: 10px; background-color: transparent; color: #4F46E5; padding: 8px 20px; border-radius: 6px; border: 1px solid #4F46E5; cursor: pointer; font-weight: 500;">Go Back</button>
+                `;
+            }).catch(function (err) {
+                console.error("PDF generation error: ", err);
+                var overlay = document.getElementById('generating-overlay');
+                overlay.innerHTML = `
+                     <h2 style="color: #DC2626; font-size: 1.25rem; font-weight: 600;">Generation Failed</h2>
+                     <p style="color: #6b7280; margin-top: 8px;">Something went wrong while creating the PDF.</p>
+                     <button onclick="window.location.reload()" style="margin-top: 20px; background-color: #4F46E5; color: white; padding: 8px 20px; border-radius: 6px; border: none; cursor: pointer; font-weight: 500;">Try Again</button>
+                 `;
+            });
+        });
+    </script>
+</body>
+
+</html>

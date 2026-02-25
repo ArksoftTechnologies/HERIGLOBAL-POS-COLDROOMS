@@ -1,0 +1,154 @@
+{% extends "base.html" %}
+
+{% block title %}Register Customer - {{ app_name }}{% endblock %}
+{% block header_title %}Register Customer{% endblock %}
+
+{% block content %}
+<div class="max-w-4xl mx-auto">
+    <div class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+        <div class="px-6 py-4 border-b border-gray-100 bg-gray-50 flex justify-between items-center">
+            <h3 class="font-semibold text-gray-900">New Customer Registration</h3>
+            <span class="text-xs text-gray-500">* Required Fields</span>
+        </div>
+
+        <form action="{{ url_for('customers.create') }}" method="POST" class="p-6 space-y-6">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <!-- Personal Info -->
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div>
+                    <label for="first_name" class="block text-sm font-medium text-gray-700">First Name *</label>
+                    <input type="text" name="first_name" id="first_name" required
+                        class="mt-1 block w-full border-gray-300 rounded-lg shadow-sm focus:ring-primary focus:border-primary sm:text-sm"
+                        placeholder="e.g. John">
+                </div>
+                <div>
+                    <label for="last_name" class="block text-sm font-medium text-gray-700">Last Name *</label>
+                    <input type="text" name="last_name" id="last_name" required
+                        class="mt-1 block w-full border-gray-300 rounded-lg shadow-sm focus:ring-primary focus:border-primary sm:text-sm"
+                        placeholder="e.g. Doe">
+                </div>
+                <div>
+                    <label for="phone" class="block text-sm font-medium text-gray-700">Phone Number *</label>
+                    <input type="tel" name="phone" id="phone" required
+                        class="mt-1 block w-full border-gray-300 rounded-lg shadow-sm focus:ring-primary focus:border-primary sm:text-sm"
+                        placeholder="e.g. 08012345678">
+                    <p class="mt-1 text-xs text-gray-500">Must be unique.</p>
+                </div>
+                <div>
+                    <label for="email" class="block text-sm font-medium text-gray-700">Email Address</label>
+                    <input type="email" name="email" id="email"
+                        class="mt-1 block w-full border-gray-300 rounded-lg shadow-sm focus:ring-primary focus:border-primary sm:text-sm"
+                        placeholder="e.g. john@example.com">
+                </div>
+            </div>
+
+            <hr class="border-gray-100">
+
+            <!-- Location -->
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div class="md:col-span-2">
+                    <label for="address" class="block text-sm font-medium text-gray-700">Address</label>
+                    <textarea name="address" id="address" rows="2"
+                        class="mt-1 block w-full border-gray-300 rounded-lg shadow-sm focus:ring-primary focus:border-primary sm:text-sm"
+                        placeholder="Street address"></textarea>
+                </div>
+                <div>
+                    <label for="city" class="block text-sm font-medium text-gray-700">City</label>
+                    <input type="text" name="city" id="city"
+                        class="mt-1 block w-full border-gray-300 rounded-lg shadow-sm focus:ring-primary focus:border-primary sm:text-sm">
+                </div>
+                <div>
+                    <label for="state" class="block text-sm font-medium text-gray-700">State</label>
+                    <input type="text" name="state" id="state"
+                        class="mt-1 block w-full border-gray-300 rounded-lg shadow-sm focus:ring-primary focus:border-primary sm:text-sm">
+                </div>
+            </div>
+
+            <hr class="border-gray-100">
+
+            <!-- POS & Credit -->
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div>
+                    <label for="primary_outlet_id" class="block text-sm font-medium text-gray-700">Primary
+                        Outlet</label>
+                    {% if is_platform_wide %}
+                    <!-- Admins: choose any outlet -->
+                    <select name="primary_outlet_id" id="primary_outlet_id"
+                        class="mt-1 block w-full border-gray-300 rounded-lg shadow-sm focus:ring-primary focus:border-primary sm:text-sm">
+                        <option value="">-- No Specific Outlet --</option>
+                        {% for outlet in outlets %}
+                        <option value="{{ outlet.id }}">{{ outlet.name }}</option>
+                        {% endfor %}
+                    </select>
+                    <p class="mt-1 text-xs text-gray-500">Optional: Tracks customer's main location.</p>
+                    {% else %}
+                    <!-- Outlet users: auto-assigned to their outlet -->
+                    <input type="hidden" name="primary_outlet_id" value="{{ user_outlet_id }}">
+                    <div
+                        class="mt-1 block w-full border border-gray-300 rounded-lg shadow-sm px-3 py-2 bg-gray-50 text-sm text-gray-700">
+                        {% for outlet in outlets %}
+                        {{ outlet.name }}
+                        {% endfor %}
+                    </div>
+                    <p class="mt-1 text-xs text-gray-400">Customers are automatically registered to your outlet.</p>
+                    {% endif %}
+                </div>
+                <div>
+                    <label for="credit_limit" class="block text-sm font-medium text-gray-700">Credit Limit (₦)</label>
+                    <div class="mt-1 relative rounded-md shadow-sm">
+                        <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                            <span class="text-gray-500 sm:text-sm">₦</span>
+                        </div>
+                        <input type="number" name="credit_limit" id="credit_limit" min="0" step="0.01" value="0.00"
+                            class="focus:ring-primary focus:border-primary block w-full pl-7 pr-12 sm:text-sm border-gray-300 rounded-lg">
+                        <div class="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none">
+                            <span class="text-gray-500 sm:text-sm">NGN</span>
+                        </div>
+                    </div>
+                    <p class="mt-1 text-xs text-gray-500">Set to 0 for Cash Only customers.</p>
+                </div>
+
+                <!-- Outstanding Balance — hidden from sales_rep (server also enforces this) -->
+                {% if not current_user.role == 'sales_rep' %}
+                <div>
+                    <label for="outstanding_balance" class="block text-sm font-medium text-gray-700">Opening Balance (₦)
+                        <span class="ml-1 text-xs font-normal text-amber-600">Legacy debt</span>
+                    </label>
+                    <div class="mt-1 relative rounded-md shadow-sm">
+                        <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                            <span class="text-gray-500 sm:text-sm">₦</span>
+                        </div>
+                        <input type="number" name="outstanding_balance" id="outstanding_balance" min="0" step="0.01"
+                            value="0.00"
+                            class="focus:ring-primary focus:border-primary block w-full pl-7 pr-12 sm:text-sm border-gray-300 rounded-lg">
+                        <div class="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none">
+                            <span class="text-gray-500 sm:text-sm">NGN</span>
+                        </div>
+                    </div>
+                    <p class="mt-1 text-xs text-gray-500">Enter this customer's existing debt before system activation.
+                        Leave 0 for new customers.</p>
+                </div>
+                {% endif %}
+            </div>
+
+            <div>
+                <label for="notes" class="block text-sm font-medium text-gray-700">Internal Notes</label>
+                <textarea name="notes" id="notes" rows="3"
+                    class="mt-1 block w-full border-gray-300 rounded-lg shadow-sm focus:ring-primary focus:border-primary sm:text-sm"
+                    placeholder="Internal staff notes..."></textarea>
+            </div>
+
+            <div class="flex items-center justify-end space-x-3 pt-4 border-t border-gray-100">
+                <a href="{{ url_for('customers.index') }}"
+                    class="inline-flex items-center px-4 py-2 border border-gray-300 shadow-sm text-sm font-medium rounded-lg text-gray-700 bg-white hover:bg-gray-50 focus:outline-none">
+                    Cancel
+                </a>
+                <button type="submit"
+                    class="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-lg text-white bg-primary hover:bg-indigo-700 focus:outline-none">
+                    Register Customer
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,482 @@
+{% extends "base.html" %}
+
+{% block title %}{{ outlet.name }} - {{ app_name }}{% endblock %}
+{% block header_title %}Outlet Management{% endblock %}
+
+{% block content %}
+<div class="space-y-6">
+    <!-- Breadcrumb -->
+    <nav class="flex" aria-label="Breadcrumb">
+        <ol class="inline-flex items-center space-x-1 md:space-x-3">
+            <li class="inline-flex items-center">
+                <a href="{{ url_for('outlets.index') }}"
+                    class="inline-flex items-center text-sm font-medium text-gray-500 hover:text-gray-900">
+                    <i data-lucide="store" class="w-4 h-4 mr-2"></i>
+                    Outlets
+                </a>
+            </li>
+            <li aria-current="page">
+                <div class="flex items-center">
+                    <i data-lucide="chevron-right" class="w-4 h-4 text-gray-400"></i>
+                    <span class="ml-1 text-sm font-medium text-gray-400 md:ml-2">{{ outlet.code }}</span>
+                </div>
+            </li>
+        </ol>
+    </nav>
+
+    <!-- Header Section -->
+    <div class="relative bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+        <div class="h-32 bg-gradient-to-r from-indigo-500 to-purple-600 w-full overflow-hidden relative">
+            <div class="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent"></div>
+            <div class="absolute inset-0 flex items-center justify-end pr-8">
+                <div class="text-right text-white">
+                    <p class="text-sm opacity-90">Last 30 Days Performance</p>
+                    <p class="text-3xl font-bold">₦{{ '{:,.2f}'.format(thirty_day_sales) }}</p>
+                </div>
+            </div>
+        </div>
+        <div class="px-6 pb-6 pt-2 relative">
+            <div class="relative -mt-10 flex flex-col md:flex-row items-start md:items-end justify-between gap-4">
+                <div class="flex items-end gap-4">
+                    <div class="h-20 w-20 rounded-xl bg-white p-1 shadow-md">
+                        <div
+                            class="h-full w-full rounded-lg {{ 'bg-purple-100 text-purple-600' if outlet.is_warehouse else 'bg-indigo-100 text-primary' }} flex items-center justify-center">
+                            <i data-lucide="{{ 'warehouse' if outlet.is_warehouse else 'store' }}"
+                                class="h-10 w-10"></i>
+                        </div>
+                    </div>
+                    <div class="mb-1">
+                        <h1 class="text-2xl font-bold text-gray-900">{{ outlet.name }}</h1>
+                        <div class="flex items-center text-sm text-gray-500 gap-3 mt-1">
+                            <span class="font-mono bg-gray-100 px-2 py-0.5 rounded text-gray-700">{{ outlet.code
+                                }}</span>
+                            {% if outlet.is_warehouse %}
+                            <span
+                                class="bg-purple-100 text-purple-700 px-2 py-0.5 rounded-full text-xs font-medium">Warehouse</span>
+                            {% elif outlet.is_active %}
+                            <span
+                                class="bg-green-100 text-green-700 px-2 py-0.5 rounded-full text-xs font-medium">Active</span>
+                            {% else %}
+                            <span
+                                class="bg-red-100 text-red-700 px-2 py-0.5 rounded-full text-xs font-medium">Inactive</span>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+
+                {% if current_user.role in ['super_admin', 'general_manager'] %}
+                <div class="flex items-center gap-3">
+                    {% if not outlet.is_warehouse %}
+                    {% if outlet.is_active %}
+                    <form method="POST" action="{{ url_for('outlets.deactivate', id=outlet.id) }}"
+                        onsubmit="return confirm('Are you sure you want to deactivate this outlet? Users assigned will lose access.')">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                        <button type="submit"
+                            class="px-4 py-2 border border-red-200 shadow-sm text-sm font-medium rounded-lg text-red-700 bg-white hover:bg-red-50 transition-colors">
+                            Deactivate
+                        </button>
+                    </form>
+                    {% else %}
+                    <form method="POST" action="{{ url_for('outlets.activate', id=outlet.id) }}">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                        <button type="submit"
+                            class="px-4 py-2 border border-green-200 shadow-sm text-sm font-medium rounded-lg text-green-700 bg-white hover:bg-green-50 transition-colors">
+                            Activate
+                        </button>
+                    </form>
+                    {% endif %}
+                    {% endif %}
+                    <a href="{{ url_for('outlets.edit', id=outlet.id) }}"
+                        class="px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-lg text-white bg-primary hover:bg-indigo-700 transition-all flex items-center">
+                        <i data-lucide="edit-3" class="w-4 h-4 mr-2"></i> Edit Outlet
+                    </a>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Key Metrics Grid -->
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+        <!-- Today's Sales -->
+        <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+            <div class="flex items-center justify-between mb-2">
+                <h3 class="text-sm font-medium text-gray-500">Today's Sales</h3>
+                <div class="p-2 bg-green-50 rounded-lg">
+                    <i data-lucide="trending-up" class="w-5 h-5 text-green-600"></i>
+                </div>
+            </div>
+            <p class="text-2xl font-bold text-gray-900">₦{{ '{:,.2f}'.format(today_sales) }}</p>
+            <p class="text-xs text-gray-500 mt-1">{{ today_transactions }} transactions</p>
+        </div>
+
+        <!-- Month Sales -->
+        <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+            <div class="flex items-center justify-between mb-2">
+                <h3 class="text-sm font-medium text-gray-500">This Month</h3>
+                <div class="p-2 bg-blue-50 rounded-lg">
+                    <i data-lucide="calendar" class="w-5 h-5 text-blue-600"></i>
+                </div>
+            </div>
+            <p class="text-2xl font-bold text-gray-900">₦{{ '{:,.2f}'.format(month_sales) }}</p>
+            <p class="text-xs text-gray-500 mt-1">Since {{ today }}</p>
+        </div>
+
+        <!-- Inventory Value -->
+        <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+            <div class="flex items-center justify-between mb-2">
+                <h3 class="text-sm font-medium text-gray-500">Inventory Value</h3>
+                <div class="p-2 bg-purple-50 rounded-lg">
+                    <i data-lucide="package" class="w-5 h-5 text-purple-600"></i>
+                </div>
+            </div>
+            <p class="text-2xl font-bold text-gray-900">₦{{ '{:,.0f}'.format(inventory_value) }}</p>
+            <p class="text-xs text-gray-500 mt-1">{{ total_products }} products in stock</p>
+        </div>
+
+        <!-- Outstanding Credit -->
+        <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+            <div class="flex items-center justify-between mb-2">
+                <h3 class="text-sm font-medium text-gray-500">Outstanding Credit</h3>
+                <div class="p-2 bg-orange-50 rounded-lg">
+                    <i data-lucide="credit-card" class="w-5 h-5 text-orange-600"></i>
+                </div>
+            </div>
+            <p class="text-2xl font-bold text-gray-900">₦{{ '{:,.2f}'.format(outstanding_credit) }}</p>
+            <p class="text-xs text-gray-500 mt-1">{{ customers_with_balance }} customers</p>
+        </div>
+    </div>
+
+    <!-- Secondary Metrics -->
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
+        <!-- Net Cash Flow -->
+        <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
+            <p class="text-xs text-gray-500 uppercase font-medium">Net Cash Flow</p>
+            <p class="text-xl font-bold {{ 'text-green-600' if net_cash_flow >= 0 else 'text-red-600' }} mt-1">
+                ₦{{ '{:,.0f}'.format(net_cash_flow) }}
+            </p>
+            <p class="text-xs text-gray-400 mt-1">Last 30 days</p>
+        </div>
+
+        <!-- Returns -->
+        <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
+            <p class="text-xs text-gray-500 uppercase font-medium">Returns</p>
+            <p class="text-xl font-bold text-gray-900 mt-1">₦{{ '{:,.0f}'.format(total_returns) }}</p>
+            <p class="text-xs text-gray-400 mt-1">{{ returns_count }} items</p>
+        </div>
+
+        <!-- Expenses -->
+        <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
+            <p class="text-xs text-gray-500 uppercase font-medium">Expenses</p>
+            <p class="text-xl font-bold text-gray-900 mt-1">₦{{ '{:,.0f}'.format(total_expenses) }}</p>
+            <p class="text-xs text-gray-400 mt-1">{{ expenses_count }} entries</p>
+        </div>
+
+        <!-- Pending Transfers -->
+        <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
+            <p class="text-xs text-gray-500 uppercase font-medium">Pending Transfers</p>
+            <p class="text-xl font-bold text-gray-900 mt-1">{{ pending_incoming + pending_outgoing }}</p>
+            <p class="text-xs text-gray-400 mt-1">In: {{ pending_incoming }}, Out: {{ pending_outgoing }}</p>
+        </div>
+
+        <!-- Active Staff -->
+        <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
+            <p class="text-xs text-gray-500 uppercase font-medium">Active Staff</p>
+            <p class="text-xl font-bold text-gray-900 mt-1">{{ active_staff }}</p>
+            <p class="text-xs text-gray-400 mt-1">{{ outlet.users|length }} total assigned</p>
+        </div>
+    </div>
+
+    <!-- Main Content Grid -->
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+
+        <!-- Left Column: Activity & Sales -->
+        <div class="lg:col-span-2 space-y-6">
+
+            <!-- Payment Mode Breakdown -->
+            <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+                <h3 class="font-semibold text-gray-900 mb-4 flex items-center">
+                    <i data-lucide="pie-chart" class="w-4 h-4 mr-2 text-gray-400"></i>
+                    Sales Breakdown (Last 30 Days)
+                </h3>
+                <div class="grid grid-cols-2 gap-4">
+                    {% if payment_breakdown %}
+                    {% for payment in payment_breakdown %}
+                    <div class="p-4 bg-gray-50 rounded-lg">
+                        <div class="flex items-center justify-between mb-2">
+                            <span class="text-sm font-medium text-gray-700">{{ payment.name }}</span>
+                            <span class="text-xs text-gray-500">{{ payment.count }}x</span>
+                        </div>
+                        <p class="text-xl font-bold text-gray-900">₦{{ '{:,.0f}'.format(payment.total) }}</p>
+                        <div class="w-full bg-gray-200 rounded-full h-1.5 mt-2">
+                            <div class="h-1.5 rounded-full 
+                                    {% if payment.is_credit %}bg-orange-500
+                                    {% elif payment.code == 'CASH' %}bg-green-500
+                                    {% elif payment.code == 'BANK' %}bg-blue-500
+                                    {% else %}bg-purple-500{% endif %}"
+                                style="width: {{ (payment.total / (thirty_day_sales * 100)|float )|int if thirty_day_sales > 0 else 0 }}%">
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                    {% else %}
+                    <div class="col-span-2 text-center py-8">
+                        <i data-lucide="bar-chart-2" class="w-12 h-12 text-gray-300 mx-auto mb-2"></i>
+                        <p class="text-gray-500 text-sm">No sales data available</p>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Recent Sales -->
+            <div class="bg-white rounded-xl shadow-sm border border-gray-200">
+                <div class="px-6 py-4 border-b border-gray-100 flex justify-between items-center">
+                    <h3 class="font-semibold text-gray-900">Recent Transactions</h3>
+                    <a href="{{ url_for('sales.index', outlet_id=outlet.id) }}"
+                        class="text-primary text-sm font-medium hover:underline">View All</a>
+                </div>
+                <div class="overflow-hidden">
+                    {% if recent_sales %}
+                    <table class="w-full text-left text-sm">
+                        <thead class="bg-gray-50 text-gray-500">
+                            <tr>
+                                <th class="px-6 py-3 font-medium">Receipt #</th>
+                                <th class="px-6 py-3 font-medium">Customer</th>
+                                <th class="px-6 py-3 font-medium">Sales Rep</th>
+                                <th class="px-6 py-3 font-medium">Amount</th>
+                                <th class="px-6 py-3 font-medium">Date</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-gray-100">
+                            {% for sale in recent_sales[:5] %}
+                            <tr class="hover:bg-gray-50">
+                                <td class="px-6 py-3 font-mono text-xs">
+                                    <a href="{{ url_for('sales.detail', id=sale.id) }}"
+                                        class="text-primary hover:underline">{{ sale.sale_number }}</a>
+                                </td>
+                                <td class="px-6 py-3 text-gray-700">
+                                    {{ sale.customer.first_name }} {{ sale.customer.last_name[:1] }}.
+                                </td>
+                                <td class="px-6 py-3 text-gray-600">{{ sale.sales_rep.full_name }}</td>
+                                <td class="px-6 py-3 font-bold text-gray-900">₦{{ '{:,.0f}'.format(sale.total_amount) }}
+                                </td>
+                                <td class="px-6 py-3 text-gray-500 text-xs">{{ sale.sale_date.strftime('%b %d, %I:%M
+                                    %p') }}</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                    {% else %}
+                    <div class="px-6 py-12 text-center">
+                        <i data-lucide="shopping-bag" class="w-12 h-12 text-gray-300 mx-auto mb-3"></i>
+                        <p class="text-gray-500">No sales recorded yet</p>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Top Sales Reps -->
+            <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+                <h3 class="font-semibold text-gray-900 mb-4 flex items-center">
+                    <i data-lucide="trophy" class="w-4 h-4 mr-2 text-gray-400"></i>
+                    Top Performers (Last 30 Days)
+                </h3>
+                {% if top_sales_reps %}
+                <div class="space-y-3">
+                    {% for rep in top_sales_reps %}
+                    <div class="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                        <div class="flex items-center">
+                            <div class="h-10 w-10 rounded-full bg-indigo-100 flex items-center justify-center mr-3">
+                                <span class="text-indigo-600 font-bold">{{ loop.index }}</span>
+                            </div>
+                            <div>
+                                <p class="font-medium text-gray-900">{{ rep.full_name }}</p>
+                                <p class="text-xs text-gray-500">{{ rep.transaction_count }} transactions</p>
+                            </div>
+                        </div>
+                        <div class="text-right">
+                            <p class="font-bold text-gray-900">₦{{ '{:,.0f}'.format(rep.total_sales) }}</p>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+                {% else %}
+                <p class="text-gray-500 text-sm text-center py-4">No sales data yet</p>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Right Column: Info & Stock -->
+        <div class="space-y-6">
+
+            <!-- Contact Information -->
+            <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+                <h3 class="font-semibold text-gray-900 mb-4 flex items-center">
+                    <i data-lucide="info" class="w-4 h-4 mr-2 text-gray-400"></i>
+                    Location Details
+                </h3>
+                <div class="space-y-4">
+                    <div class="flex items-start">
+                        <i data-lucide="map-pin" class="w-5 h-5 text-gray-400 mt-0.5 mr-3 flex-shrink-0"></i>
+                        <span class="text-sm text-gray-600">
+                            {{ outlet.address or 'No address provided' }}<br>
+                            {{ outlet.city }}, {{ outlet.state }}
+                        </span>
+                    </div>
+                    <div class="flex items-center">
+                        <i data-lucide="phone" class="w-5 h-5 text-gray-400 mr-3"></i>
+                        <span class="text-sm text-gray-600">{{ outlet.phone or 'No phone number' }}</span>
+                    </div>
+                    <div class="flex items-center">
+                        <i data-lucide="mail" class="w-5 h-5 text-gray-400 mr-3"></i>
+                        <a href="mailto:{{ outlet.email }}" class="text-sm text-primary hover:underline">
+                            {{ outlet.email or 'No email' }}
+                        </a>
+                    </div>
+                    <div class="flex items-center pt-2 border-t border-gray-100 mt-2">
+                        <i data-lucide="user" class="w-5 h-5 text-gray-400 mr-3"></i>
+                        <div>
+                            <span class="text-xs text-gray-400 block">Manager</span>
+                            <span class="text-sm font-medium text-gray-800">
+                                {{ outlet.manager_name or 'Not Assigned' }}
+                            </span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Low Stock Alert -->
+            <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+                <div class="flex items-center justify-between mb-4">
+                    <h3 class="font-semibold text-gray-900 flex items-center">
+                        <i data-lucide="alert-triangle" class="w-4 h-4 mr-2 text-orange-500"></i>
+                        Stock Alerts
+                    </h3>
+                    <a href="{{ url_for('inventory.outlet_detail', id=outlet.id) }}"
+                        class="text-xs text-primary hover:underline">View All</a>
+                </div>
+                <div class="space-y-2">
+                    <div class="flex justify-between text-sm p-2 bg-red-50 rounded">
+                        <span class="text-red-700">Out of Stock</span>
+                        <span class="font-bold text-red-700">{{ out_of_stock_count }}</span>
+                    </div>
+                    <div class="flex justify-between text-sm p-2 bg-yellow-50 rounded">
+                        <span class="text-yellow-700">Low Stock</span>
+                        <span class="font-bold text-yellow-700">{{ low_stock_count }}</span>
+                    </div>
+                </div>
+                {% if low_stock_items %}
+                <div class="mt-4 space-y-2">
+                    <p class="text-xs text-gray-500 uppercase font-medium">Critical Items:</p>
+                    {% for item in low_stock_items[:5] %}
+                    <div class="flex justify-between items-center text-xs p-2 bg-gray-50 rounded">
+                        <span class="text-gray-700 truncate mr-2">{{ item.name }}</span>
+                        <span class="font-bold text-orange-600 whitespace-nowrap">{{ item.quantity }} left</span>
+                    </div>
+                    {% endfor %}
+                </div>
+                {% endif %}
+            </div>
+
+            <!-- Remittance Summary -->
+            <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+                <h3 class="font-semibold text-gray-900 mb-4 flex items-center">
+                    <i data-lucide="wallet" class="w-4 h-4 mr-2 text-gray-400"></i>
+                    Cash Flow (30 Days)
+                </h3>
+                <div class="space-y-3">
+                    <div class="flex justify-between items-center">
+                        <span class="text-sm text-gray-600">Collections</span>
+                        <span class="font-bold text-green-600">₦{{ '{:,.0f}'.format(total_collections) }}</span>
+                    </div>
+                    <div class="flex justify-between items-center">
+                        <span class="text-sm text-gray-600">Remittances</span>
+                        <span class="font-bold text-blue-600">₦{{ '{:,.0f}'.format(total_remittances) }}</span>
+                    </div>
+                    <div class="flex justify-between items-center pt-2 border-t border-gray-200">
+                        <span class="text-sm font-medium text-gray-700">Outstanding</span>
+                        <span
+                            class="font-bold {{ 'text-red-600' if outstanding_remittances > 0 else 'text-green-600' }}">
+                            ₦{{ '{:,.0f}'.format(outstanding_remittances) }}
+                        </span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Assigned Staff Table -->
+    <div class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+        <div class="px-6 py-4 border-b border-gray-100 flex justify-between items-center">
+            <h3 class="font-semibold text-gray-900">Staff Assigned to this Outlet</h3>
+            {% if current_user.role in ['super_admin', 'general_manager'] %}
+            <a href="{{ url_for('users.create_user', outlet_id=outlet.id) }}"
+                class="text-primary text-sm font-medium hover:underline">+ Add User</a>
+            {% endif %}
+        </div>
+        <div class="overflow-x-auto">
+            <table class="min-w-full divide-y divide-gray-200">
+                <thead class="bg-gray-50">
+                    <tr>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Name</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Username</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Role</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Email</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-gray-200">
+                    {% if outlet.users %}
+                    {% for user in outlet.users %}
+                    <tr class="hover:bg-gray-50">
+                        <td class="px-6 py-4">
+                            <a href="{{ url_for('users.view_user', id=user.id) }}"
+                                class="text-sm font-medium text-gray-900 hover:text-primary">
+                                {{ user.full_name }}
+                            </a>
+                        </td>
+                        <td class="px-6 py-4 text-sm text-gray-600 font-mono">{{ user.username }}</td>
+                        <td class="px-6 py-4">
+                            <span class="text-xs px-2 py-1 rounded-full font-medium
+                                {% if user.role == 'outlet_admin' %}bg-green-100 text-green-800
+                                {% elif user.role == 'sales_rep' %}bg-blue-100 text-blue-800
+                                {% else %}bg-gray-100 text-gray-800{% endif %}">
+                                {{ user.role|replace('_', ' ')|title }}
+                            </span>
+                        </td>
+                        <td class="px-6 py-4 text-sm text-gray-600">{{ user.email or '-' }}</td>
+                        <td class="px-6 py-4">
+                            {% if user.is_active %}
+                            <span
+                                class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-green-100 text-green-800">
+                                Active
+                            </span>
+                            {% else %}
+                            <span
+                                class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-red-100 text-red-800">
+                                Inactive
+                            </span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                    {% else %}
+                    <tr>
+                        <td colspan="5" class="px-6 py-12 text-center">
+                            <i data-lucide="users" class="w-12 h-12 text-gray-300 mx-auto mb-3"></i>
+                            <p class="text-gray-500">No staff assigned to this outlet yet.</p>
+                            {% if current_user.role in ['super_admin', 'general_manager'] %}
+                            <a href="{{ url_for('users.create_user', outlet_id=outlet.id) }}"
+                                class="text-primary text-sm font-medium hover:underline mt-2 inline-block">
+                                Add your first user
+                            </a>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% endif %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}

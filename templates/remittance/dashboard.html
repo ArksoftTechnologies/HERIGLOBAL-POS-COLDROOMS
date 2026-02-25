@@ -1,0 +1,193 @@
+{% extends "base.html" %}
+
+{% block title %}Cash Remittance & Collections{% endblock %}
+
+{% block content %}
+<div class="space-y-6">
+    <!-- Header -->
+    <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+        <div>
+            <h1 class="text-2xl font-bold text-gray-900">Cash Remittance & Collections</h1>
+            <p class="text-gray-500">Manage cash collections and remittances to the company.</p>
+        </div>
+        <div class="flex gap-3">
+            {% if current_user.role in ['sales_rep', 'outlet_admin', 'super_admin'] %}
+            <a href="{{ url_for('remittance.declare_collection') }}"
+                class="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-green-600 hover:bg-green-700">
+                <i data-lucide="plus-circle" class="w-4 h-4 mr-2"></i>
+                Declare Collection
+            </a>
+            <a href="{{ url_for('remittance.record_remittance') }}"
+                class="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700">
+                <i data-lucide="send" class="w-4 h-4 mr-2"></i>
+                Record Remittance
+            </a>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Outlet Filter (super_admin / general_manager only) -->
+    {% if current_user.role in ['super_admin', 'general_manager'] and outlets %}
+    <div class="bg-white rounded-xl shadow-sm border border-gray-100 px-6 py-4">
+        <form method="GET" action="{{ url_for('remittance.index') }}"
+            class="flex flex-col sm:flex-row sm:items-center gap-3">
+            <label class="text-sm font-medium text-gray-700 whitespace-nowrap flex items-center gap-2">
+                <i data-lucide="building-2" class="w-4 h-4 text-gray-400"></i>
+                Filter by Outlet
+            </label>
+            <select name="outlet_id" id="outlet_id_dash" onchange="this.form.submit()" class="block w-full sm:w-64 rounded-md border-gray-300 shadow-sm text-sm
+                           focus:border-blue-500 focus:ring-blue-500 py-2 px-3 border">
+                <option value="">— All Outlets —</option>
+                {% for outlet in outlets %}
+                <option value="{{ outlet.id }}" {% if selected_outlet_id==outlet.id %}selected{% endif %}>
+                    {{ outlet.name }}
+                </option>
+                {% endfor %}
+            </select>
+            {% if selected_outlet_id %}
+            <a href="{{ url_for('remittance.index') }}"
+                class="text-sm text-gray-500 hover:text-red-600 flex items-center gap-1">
+                <i data-lucide="x-circle" class="w-4 h-4"></i> Clear
+            </a>
+            {% endif %}
+        </form>
+    </div>
+    {% endif %}
+
+    <!-- Stats Cards -->
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <!-- Total Collections -->
+        <div class="bg-white rounded-xl shadow-sm p-6 border border-gray-100">
+            <div class="flex items-center justify-between">
+                <div>
+                    <p class="text-sm font-medium text-gray-500">Total Collections</p>
+                    <p class="text-2xl font-bold text-gray-900 mt-1">₦{{ "{:,.2f}".format(total_collections) }}</p>
+                </div>
+                <div class="p-3 bg-green-50 rounded-lg">
+                    <i data-lucide="wallet" class="w-6 h-6 text-green-600"></i>
+                </div>
+            </div>
+            <div class="mt-4">
+                <a href="{{ url_for('remittance.collections_list') }}"
+                    class="text-sm text-green-600 hover:text-green-700 font-medium flex items-center">
+                    View History <i data-lucide="chevron-right" class="w-4 h-4 ml-1"></i>
+                </a>
+            </div>
+        </div>
+
+        <!-- Total Remittances -->
+        <div class="bg-white rounded-xl shadow-sm p-6 border border-gray-100">
+            <div class="flex items-center justify-between">
+                <div>
+                    <p class="text-sm font-medium text-gray-500">Total Remittances</p>
+                    <p class="text-2xl font-bold text-gray-900 mt-1">₦{{ "{:,.2f}".format(total_remittances) }}</p>
+                </div>
+                <div class="p-3 bg-blue-50 rounded-lg">
+                    <i data-lucide="arrow-up-right" class="w-6 h-6 text-blue-600"></i>
+                </div>
+            </div>
+            <div class="mt-4">
+                <a href="{{ url_for('remittance.remittances_list') }}"
+                    class="text-sm text-blue-600 hover:text-blue-700 font-medium flex items-center">
+                    View History <i data-lucide="chevron-right" class="w-4 h-4 ml-1"></i>
+                </a>
+            </div>
+        </div>
+
+        <!-- Outstanding Balance -->
+        <div class="bg-gradient-to-br from-orange-50 to-orange-100 rounded-xl shadow-sm p-6 border border-orange-200">
+            <div class="flex items-center justify-between">
+                <div>
+                    <p class="text-sm font-medium text-orange-800">Outstanding Balance</p>
+                    <p class="text-2xl font-bold text-orange-900 mt-1">₦{{ "{:,.2f}".format(outstanding_balance) }}</p>
+                </div>
+                <div class="p-3 bg-white rounded-lg shadow-sm">
+                    <i data-lucide="alert-circle" class="w-6 h-6 text-orange-600"></i>
+                </div>
+            </div>
+            <div class="mt-4">
+                <span class="text-xs text-orange-700 font-medium px-2 py-1 bg-orange-200 rounded-full">
+                    {{ "Needs Remittance" if outstanding_balance > 0 else "All Clear" }}
+                </span>
+            </div>
+        </div>
+    </div>
+
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <!-- Recent Collections -->
+        <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+            <div class="px-6 py-4 border-b border-gray-100 flex items-center justify-between bg-gray-50">
+                <h3 class="text-lg font-semibold text-gray-900">Recent Collections</h3>
+                <a href="{{ url_for('remittance.collections_list') }}"
+                    class="text-sm text-blue-600 hover:text-blue-700 font-medium">View All</a>
+            </div>
+            <div class="divide-y divide-gray-100">
+                {% for col in recent_collections %}
+                <div class="p-4 hover:bg-gray-50 transition-colors">
+                    <div class="flex items-center justify-between">
+                        <div class="flex items-center space-x-3">
+                            <div class="p-2 bg-green-50 rounded-lg">
+                                <i data-lucide="download" class="w-5 h-5 text-green-600"></i>
+                            </div>
+                            <div>
+                                <p class="text-sm font-medium text-gray-900">{{ col.collection_number }}</p>
+                                <p class="text-xs text-gray-500">{{ col.collection_date.strftime('%b %d, %Y') }} • {{
+                                    col.collection_type|title }}</p>
+                            </div>
+                        </div>
+                        <div class="text-right">
+                            <p class="text-sm font-bold text-gray-900">+₦{{ "{:,.2f}".format(col.amount) }}</p>
+                            <p class="text-xs text-gray-500">{{ col.sales_rep.first_name }}</p>
+                        </div>
+                    </div>
+                </div>
+                {% else %}
+                <div class="p-8 text-center text-gray-500">
+                    No recent collections found.
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+
+        <!-- Recent Remittances -->
+        <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+            <div class="px-6 py-4 border-b border-gray-100 flex items-center justify-between bg-gray-50">
+                <h3 class="text-lg font-semibold text-gray-900">Recent Remittances</h3>
+                <a href="{{ url_for('remittance.remittances_list') }}"
+                    class="text-sm text-blue-600 hover:text-blue-700 font-medium">View All</a>
+            </div>
+            <div class="divide-y divide-gray-100">
+                {% for rem in recent_remittances %}
+                <div class="p-4 hover:bg-gray-50 transition-colors">
+                    <div class="flex items-center justify-between">
+                        <div class="flex items-center space-x-3">
+                            <div class="p-2 bg-blue-50 rounded-lg">
+                                <i data-lucide="upload" class="w-5 h-5 text-blue-600"></i>
+                            </div>
+                            <div>
+                                <p class="text-sm font-medium text-gray-900">{{ rem.remittance_number }}</p>
+                                <p class="text-xs text-gray-500">{{ rem.remittance_date.strftime('%b %d, %Y') }} • {{
+                                    rem.remittance_method|replace('_', ' ')|title }}</p>
+                            </div>
+                        </div>
+                        <div class="text-right">
+                            <p class="text-sm font-bold text-gray-900">-₦{{ "{:,.2f}".format(rem.amount) }}</p>
+                            <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium 
+                                {% if rem.status == 'verified' %}bg-green-100 text-green-800
+                                {% elif rem.status == 'rejected' %}bg-red-100 text-red-800
+                                {% else %}bg-yellow-100 text-yellow-800{% endif %}">
+                                {{ rem.status|title }}
+                            </span>
+                        </div>
+                    </div>
+                </div>
+                {% else %}
+                <div class="p-8 text-center text-gray-500">
+                    No recent remittances found.
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

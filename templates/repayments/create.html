@@ -1,0 +1,426 @@
+{% extends "base.html" %}
+
+{% block title %}Record Repayment - {{ app_name }}{% endblock %}
+
+{% block content %}
+<div class="container mx-auto px-4 py-6" x-data="repaymentApp()" x-cloak>
+    <!-- Page Header -->
+    <div class="flex items-center justify-between mb-6">
+        <div>
+            <h1 class="text-3xl font-bold text-gray-900">Record Repayment</h1>
+            <p class="text-gray-600 mt-1">Process customer credit repayment</p>
+        </div>
+        <a href="/repayments" class="text-indigo-600 hover:text-indigo-800 flex items-center">
+            <svg class="w-5 h-5 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+            </svg>
+            Back to Repayments
+        </a>
+    </div>
+
+    <!-- Customer Selection -->
+    <div class="bg-white rounded-lg shadow-md p-6 mb-6">
+        <h2 class="text-xl font-semibold mb-4">Select Customer</h2>
+
+        <template x-if="!selectedCustomer">
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-2">Search Customer</label>
+                <input type="text" x-model="customerSearch" @input.debounce.300ms="searchCustomers()"
+                    placeholder="Search by name, phone, or customer number..."
+                    class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent">
+
+                <!-- Search Results -->
+                <div x-show="customerResults.length > 0"
+                    class="mt-2 border border-gray-200 rounded-lg max-h-64 overflow-y-auto">
+                    <template x-for="customer in customerResults" :key="customer.id">
+                        <div @click="selectCustomer(customer)"
+                            class="p-4 hover:bg-gray-50 cursor-pointer border-b last:border-b-0">
+                            <div class="flex justify-between items-start">
+                                <div>
+                                    <p class="font-semibold text-gray-900" x-text="customer.name"></p>
+                                    <p class="text-sm text-gray-600" x-text="customer.customer_number"></p>
+                                    <p class="text-sm text-gray-600" x-text="customer.phone"></p>
+                                </div>
+                                <div class="text-right">
+                                    <p class="text-sm text-gray-500">Outstanding Balance</p>
+                                    <p class="text-lg font-bold text-red-600"
+                                        x-text="'₦' + formatMoney(customer.current_balance)"></p>
+                                </div>
+                            </div>
+                        </div>
+                    </template>
+                </div>
+
+                <p x-show="customerSearch.length >= 2 && customerResults.length === 0"
+                    class="text-sm text-gray-500 mt-2">
+                    No customers found with outstanding balance
+                </p>
+            </div>
+        </template>
+
+        <!-- Selected Customer Display -->
+        <template x-if="selectedCustomer">
+            <div class="bg-gradient-to-r from-red-500 to-red-600 text-white rounded-lg p-6">
+                <div class="flex justify-between items-start">
+                    <div>
+                        <p class="text-sm opacity-90 uppercase tracking-wide">Customer</p>
+                        <p class="text-2xl font-bold mt-1" x-text="selectedCustomer.name"></p>
+                        <p class="text-sm opacity-90 mt-1" x-text="selectedCustomer.customer_number"></p>
+                        <p class="text-sm opacity-90" x-text="selectedCustomer.phone"></p>
+                    </div>
+                    <div class="text-right">
+                        <p class="text-sm opacity-90">Outstanding Balance</p>
+                        <p class="text-4xl font-bold mt-2" x-text="'₦' + formatMoney(maxAmount)"></p>
+                    </div>
+                </div>
+                <button @click="clearCustomer()"
+                    class="mt-4 bg-white text-red-600 px-4 py-2 rounded-lg font-semibold hover:bg-gray-100">
+                    Change Customer
+                </button>
+            </div>
+        </template>
+    </div>
+
+    <!-- Repayment Form (shown only when customer selected) -->
+    <template x-if="selectedCustomer">
+        <div class="space-y-6">
+            <!-- Amount Section -->
+            <div class="bg-white rounded-lg shadow-md p-6">
+                <h2 class="text-xl font-semibold mb-4">Repayment Amount</h2>
+
+                <div class="mb-4">
+                    <label class="block text-sm font-medium text-gray-700 mb-2">
+                        Amount to Pay <span class="text-red-500">*</span>
+                    </label>
+                    <div class="relative">
+                        <span class="absolute left-3 top-3 text-gray-500 font-semibold">₦</span>
+                        <input type="number" x-model.number="amount" :max="maxAmount" min="0" step="0.01"
+                            class="w-full pl-8 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500"
+                            placeholder="0.00">
+                    </div>
+                    <p class="text-sm text-gray-500 mt-1">Maximum: ₦<span x-text="formatMoney(maxAmount)"></span></p>
+                </div>
+
+                <!-- Quick Amount Buttons -->
+                <div class="flex space-x-2 mb-4">
+                    <button @click="setFullPayment()"
+                        class="px-4 py-2 bg-green-100 text-green-800 rounded-lg hover:bg-green-200 font-semibold">
+                        Full Payment: ₦<span x-text="formatMoney(maxAmount)"></span>
+                    </button>
+                    <button @click="setHalfPayment()"
+                        class="px-4 py-2 bg-blue-100 text-blue-800 rounded-lg hover:bg-blue-200 font-semibold">
+                        Half: ₦<span x-text="formatMoney(maxAmount / 2)"></span>
+                    </button>
+                </div>
+
+                <!-- Remaining Balance Display -->
+                <div class="bg-blue-50 border-l-4 border-blue-500 p-4">
+                    <div class="flex justify-between items-center">
+                        <div>
+                            <p class="text-sm text-gray-600">Current Balance</p>
+                            <p class="text-2xl font-bold text-gray-800">₦<span x-text="formatMoney(maxAmount)"></span>
+                            </p>
+                        </div>
+                        <div class="text-3xl text-gray-400">→</div>
+                        <div>
+                            <p class="text-sm text-gray-600">After Payment</p>
+                            <p class="text-2xl font-bold text-green-600">₦<span
+                                    x-text="formatMoney(remainingBalance)"></span></p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Payment Method Section -->
+            <div class="bg-white rounded-lg shadow-md p-6">
+                <h2 class="text-xl font-semibold mb-4">Payment Method</h2>
+
+                <div class="space-y-3">
+                    <!-- Single Payment Options -->
+                    <template x-for="mode in paymentModes" :key="mode.id">
+                        <label class="flex items-center p-3 border rounded-lg cursor-pointer hover:bg-gray-50">
+                            <input type="radio" name="payment_type" :value="mode.id"
+                                @change="setPaymentMode(mode.id, mode.code, mode.requires_reference)" class="mr-3">
+                            <div class="flex-1">
+                                <p class="font-medium" x-text="mode.name"></p>
+                            </div>
+                        </label>
+                    </template>
+
+                    <!-- Split Payment Option -->
+                    <label class="flex items-center p-3 border rounded-lg cursor-pointer hover:bg-gray-50">
+                        <input type="radio" name="payment_type" value="split" @change="paymentType = 'split'"
+                            class="mr-3">
+                        <div>
+                            <p class="font-medium">Split Payment</p>
+                            <p class="text-sm text-gray-500">Pay with multiple methods</p>
+                        </div>
+                    </label>
+                </div>
+
+                <!-- Transaction Reference (for single payment) -->
+                <div x-show="paymentType === 'single' && requiresReference" class="mt-4">
+                    <label class="block text-sm font-medium text-gray-700 mb-2">
+                        Transaction Reference <span class="text-red-500">*</span>
+                    </label>
+                    <input type="text" x-model="transactionReference" placeholder="Enter transaction reference"
+                        class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500">
+                </div>
+
+                <!-- Split Payment Breakdown -->
+                <div x-show="paymentType === 'split'" class="mt-4 space-y-3">
+                    <p class="text-sm font-medium text-gray-700">Payment Breakdown</p>
+
+                    <template x-for="(split, index) in splitPayments" :key="index">
+                        <div class="flex space-x-2">
+                            <select x-model="split.payment_mode_id"
+                                class="flex-1 px-3 py-2 border border-gray-300 rounded-lg">
+                                <option value="">Select Method</option>
+                                <template x-for="mode in paymentModes" :key="mode.id">
+                                    <option :value="mode.id" x-text="mode.name"></option>
+                                </template>
+                            </select>
+
+                            <input type="number" x-model.number="split.amount" step="0.01" placeholder="Amount"
+                                class="w-32 px-3 py-2 border border-gray-300 rounded-lg">
+
+                            <input type="text" x-model="split.reference" placeholder="Ref (optional)"
+                                class="w-40 px-3 py-2 border border-gray-300 rounded-lg">
+
+                            <button @click="removeSplit(index)" x-show="splitPayments.length > 2"
+                                class="px-3 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600">
+                                ×
+                            </button>
+                        </div>
+                    </template>
+
+                    <button @click="addSplit()" class="text-indigo-600 hover:text-indigo-800 text-sm font-semibold">
+                        + Add Payment Method
+                    </button>
+
+                    <div class="bg-gray-50 p-3 rounded-lg flex justify-between items-center">
+                        <span class="font-semibold">Total Entered:</span>
+                        <span class="text-lg font-bold"
+                            :class="Math.abs(splitTotal - amount) < 0.01 ? 'text-green-600' : 'text-red-600'">
+                            ₦<span x-text="formatMoney(splitTotal)"></span>
+                        </span>
+                    </div>
+                    <p x-show="Math.abs(splitTotal - amount) >= 0.01" class="text-sm text-red-600">
+                        Split total must equal repayment amount
+                    </p>
+                </div>
+            </div>
+
+            <!-- Notes Section -->
+            <div class="bg-white rounded-lg shadow-md p-6">
+                <label class="block text-sm font-medium text-gray-700 mb-2">Notes (Optional)</label>
+                <textarea id="notes" rows="3"
+                    class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500"
+                    placeholder="Enter any additional notes..."></textarea>
+            </div>
+
+            <!-- Action Buttons -->
+            <div class="flex justify-between items-center">
+                <a href="/repayments"
+                    class="px-6 py-3 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 font-semibold">
+                    Cancel
+                </a>
+
+                <button @click="processRepayment()" :disabled="!canSubmit || processing"
+                    :class="canSubmit && !processing ? 'bg-green-600 hover:bg-green-700' : 'bg-gray-400 cursor-not-allowed'"
+                    class="px-8 py-3 text-white rounded-lg font-bold text-lg shadow-lg">
+                    <span x-show="!processing">Record Repayment: ₦<span x-text="formatMoney(amount)"></span></span>
+                    <span x-show="processing">Processing...</span>
+                </button>
+            </div>
+        </div>
+    </template>
+</div>
+
+<script>
+    function repaymentApp() {
+        return {
+            customerSearch: '',
+            customerResults: [],
+            selectedCustomer: null,
+            amount: 0,
+            maxAmount: 0,
+            paymentType: 'single',
+            paymentModes: [],
+            selectedPaymentModeId: null,
+            selectedPaymentModeCode: '',
+            requiresReference: false,
+            transactionReference: '',
+            splitPayments: [
+                { payment_mode_id: '', amount: 0, reference: '' },
+                { payment_mode_id: '', amount: 0, reference: '' }
+            ],
+            processing: false,
+
+            async init() {
+                console.log('Repayment app initialized');
+
+                // Load payment modes
+                await this.loadPaymentModes();
+
+                // Check if customer_id in URL
+                const customerId = parseInt('{{ customer_id }}') || 0;
+                if (customerId > 0) {
+                    await this.loadCustomer(customerId);
+                }
+            },
+
+            async loadPaymentModes() {
+                try {
+                    const res = await fetch('/repayments/api/payment-modes');
+                    if (res.ok) {
+                        this.paymentModes = await res.json();
+                        console.log('Loaded payment modes:', this.paymentModes.length);
+                    }
+                } catch (error) {
+                    console.error('Error loading payment modes:', error);
+                }
+            },
+
+            async loadCustomer(customerId) {
+                try {
+                    const res = await fetch(`/customers/search?q=CUST`);
+                    if (res.ok) {
+                        const customers = await res.json();
+                        const customer = customers.find(c => c.id === customerId);
+                        if (customer && customer.current_balance > 0) {
+                            this.selectCustomer(customer);
+                        }
+                    }
+                } catch (error) {
+                    console.error('Error loading customer:', error);
+                }
+            },
+
+            get splitTotal() {
+                return this.splitPayments.reduce((sum, p) => sum + (parseFloat(p.amount) || 0), 0);
+            },
+
+            get remainingBalance() {
+                return Math.max(0, this.maxAmount - this.amount);
+            },
+
+            get canSubmit() {
+                if (!this.selectedCustomer || this.amount <= 0 || this.amount > this.maxAmount) {
+                    return false;
+                }
+
+                if (this.paymentType === 'single') {
+                    if (!this.selectedPaymentModeId) return false;
+                    if (this.requiresReference && !this.transactionReference.trim()) return false;
+                } else {
+                    if (Math.abs(this.splitTotal - this.amount) >= 0.01) return false;
+                    for (let s of this.splitPayments) {
+                        if (!s.payment_mode_id || s.amount <= 0) return false;
+                    }
+                }
+                return true;
+            },
+
+            formatMoney(amount) {
+                return parseFloat(amount || 0).toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+            },
+
+            async searchCustomers() {
+                if (this.customerSearch.length < 2) {
+                    this.customerResults = [];
+                    return;
+                }
+
+                try {
+                    const res = await fetch(`/customers/search?q=${encodeURIComponent(this.customerSearch)}`);
+                    if (res.ok) {
+                        const data = await res.json();
+                        this.customerResults = data.filter(c => c.current_balance > 0);
+                    }
+                } catch (error) {
+                    console.error('Error searching customers:', error);
+                    this.customerResults = [];
+                }
+            },
+
+            selectCustomer(customer) {
+                this.selectedCustomer = customer;
+                this.maxAmount = parseFloat(customer.current_balance || 0);
+                this.customerSearch = '';
+                this.customerResults = [];
+            },
+
+            clearCustomer() {
+                this.selectedCustomer = null;
+                this.maxAmount = 0;
+                this.amount = 0;
+            },
+
+            setFullPayment() {
+                this.amount = this.maxAmount;
+            },
+
+            setHalfPayment() {
+                this.amount = Math.round((this.maxAmount / 2) * 100) / 100;
+            },
+
+            setPaymentMode(id, code, requiresRef) {
+                this.paymentType = 'single';
+                this.selectedPaymentModeId = id;
+                this.selectedPaymentModeCode = code;
+                this.requiresReference = requiresRef;
+            },
+
+            addSplit() {
+                this.splitPayments.push({ payment_mode_id: '', amount: 0, reference: '' });
+            },
+
+            removeSplit(index) {
+                if (this.splitPayments.length > 2) {
+                    this.splitPayments.splice(index, 1);
+                }
+            },
+
+            async processRepayment() {
+                if (!this.canSubmit) return;
+
+                this.processing = true;
+
+                const payload = {
+                    customer_id: this.selectedCustomer.id,
+                    amount: parseFloat(this.amount),
+                    payment_type: this.paymentType,
+                    payment_mode_id: this.paymentType === 'single' ? this.selectedPaymentModeId : null,
+                    transaction_reference: this.paymentType === 'single' ? this.transactionReference : null,
+                    split_payments: this.paymentType === 'split' ? this.splitPayments : [],
+                    notes: document.getElementById('notes').value
+                };
+
+                try {
+                    const res = await fetch('/repayments/create', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'X-CSRFToken': '{{ csrf_token() }}'
+                        },
+                        body: JSON.stringify(payload)
+                    });
+
+                    const data = await res.json();
+
+                    if (data.success) {
+                        window.location.href = data.redirect;
+                    } else {
+                        alert(data.error || 'Failed to process repayment');
+                        this.processing = false;
+                    }
+                } catch (error) {
+                    alert('Error processing repayment');
+                    this.processing = false;
+                }
+            }
+        }
+    }
+</script>
+{% endblock %}

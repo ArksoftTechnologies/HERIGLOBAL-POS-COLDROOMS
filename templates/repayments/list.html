@@ -1,0 +1,132 @@
+{% extends "base.html" %}
+
+{% block title %}Repayments - {{ app_name }}{% endblock %}
+
+{% block content %}
+<div class="container mx-auto px-4 py-8">
+    <div class="flex flex-col md:flex-row justify-between items-center mb-6">
+        <div>
+            <h1 class="text-2xl font-bold text-gray-800">Credit Repayments</h1>
+            <p class="text-gray-600">Track and manage customer credit payments.</p>
+        </div>
+        <a href="{{ url_for('repayments.create') }}"
+            class="mt-4 md:mt-0 bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700 font-medium flex items-center gap-2">
+            <i data-lucide="plus-circle" class="w-5 h-5"></i>
+            Record Repayment
+        </a>
+    </div>
+
+    <!-- Filters -->
+    <div class="bg-white rounded-lg shadow-sm p-4 mb-6 border border-gray-100">
+        <form action="{{ url_for('repayments.list_repayments') }}" method="GET"
+            class="grid grid-cols-1 md:grid-cols-4 gap-4">
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">Date From</label>
+                <input type="date" name="date_from" value="{{ request.args.get('date_from', '') }}"
+                    class="w-full px-3 py-2 border rounded-md text-sm">
+            </div>
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">Date To</label>
+                <input type="date" name="date_to" value="{{ request.args.get('date_to', '') }}"
+                    class="w-full px-3 py-2 border rounded-md text-sm">
+            </div>
+            <!-- Future: Customer search/dropdown -->
+            <!-- Future: Outlet filter for Admin -->
+            <div class="flex items-end">
+                <button type="submit"
+                    class="bg-gray-800 text-white px-4 py-2 rounded-md hover:bg-gray-900 text-sm font-medium w-full">
+                    <i data-lucide="filter" class="w-4 h-4 inline-block mr-1"></i> Filter
+                </button>
+            </div>
+        </form>
+    </div>
+
+    <!-- Repayments Table -->
+    <div class="bg-white rounded-lg shadow overflow-hidden">
+        <table class="min-w-full divide-y divide-gray-200">
+            <thead class="bg-gray-50">
+                <tr>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Repayment
+                        #</th>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Customer
+                    </th>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Amount
+                    </th>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Method
+                    </th>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Received
+                        By</th>
+                    <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Actions
+                    </th>
+                </tr>
+            </thead>
+            <tbody class="bg-white divide-y divide-gray-200">
+                {% for repayment in pagination.items %}
+                <tr class="hover:bg-gray-50">
+                    <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-indigo-600">
+                        {{ repayment.repayment_number }}
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                        {{ repayment.repayment_date.strftime('%Y-%m-%d %H:%M') }}
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap">
+                        <div class="text-sm font-medium text-gray-900">{{ repayment.customer.name }}</div>
+                        <div class="text-xs text-gray-500">{{ repayment.customer.phone }}</div>
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm font-bold text-green-600">
+                        ₦{{ "{:,.2f}".format(repayment.amount) }}
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                        {% if repayment.is_split_payment %}
+                        <span class="px-2 py-1 bg-amber-100 text-amber-800 rounded-full text-xs">Split Pmt</span>
+                        {% else %}
+                        <span class="px-2 py-1 bg-gray-100 text-gray-800 rounded-full text-xs">
+                            {{ repayment.payment_mode.name if repayment.payment_mode else 'N/A' }}
+                        </span>
+                        {% endif %}
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                        {{ repayment.receiver.username }}
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                        <a href="{{ url_for('repayments.view_receipt', id=repayment.id) }}"
+                            class="text-indigo-600 hover:text-indigo-900 border border-indigo-200 px-3 py-1 rounded hover:bg-indigo-50">
+                            View Receipt
+                        </a>
+                    </td>
+                </tr>
+                {% else %}
+                <tr>
+                    <td colspan="7" class="px-6 py-8 text-center text-gray-500">
+                        No repayments found.
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    <!-- Pagination -->
+    {% if pagination.pages > 1 %}
+    <div class="mt-4 flex justify-between items-center">
+        <div class="text-sm text-gray-700">
+            Showing <span class="font-medium">{{ (pagination.page - 1) * pagination.per_page + 1 }}</span> to <span
+                class="font-medium">{{ min(pagination.page * pagination.per_page, pagination.total) }}</span> of <span
+                class="font-medium">{{ pagination.total }}</span> results
+        </div>
+        <div class="flex gap-2">
+            {% if pagination.has_prev %}
+            <a href="{{ url_for('repayments.list_repayments', page=pagination.prev_num, **request.args) }}"
+                class="px-3 py-1 border rounded hover:bg-gray-50">Previous</a>
+            {% endif %}
+            <span class="px-3 py-1 bg-gray-100 border rounded font-medium">{{ pagination.page }}</span>
+            {% if pagination.has_next %}
+            <a href="{{ url_for('repayments.list_repayments', page=pagination.next_num, **request.args) }}"
+                class="px-3 py-1 border rounded hover:bg-gray-50">Next</a>
+            {% endif %}
+        </div>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

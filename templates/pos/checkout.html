@@ -1,0 +1,745 @@
+{% extends "base.html" %}
+
+{% block title %}POS Checkout - {{ app_name }}{% endblock %}
+{% block header_title %}Point of Sale{% endblock %}
+
+{% block content %}
+<style>
+    /* ═══════════════════════════════════════
+   POS — Layout foundation
+   Two-panel split that fills exactly the
+   remaining viewport height on desktop.
+═══════════════════════════════════════ */
+    .pos-wrap {
+        display: flex;
+        flex-direction: column;
+        gap: 1rem;
+    }
+
+    /* Cart items: guarantee each row doesn't collapse on small screens */
+    .cart-row {
+        display: grid;
+        grid-template-columns: 1fr auto auto;
+        /* info | qty-controls | remove */
+        gap: 0.5rem;
+        align-items: start;
+        padding: 0.75rem;
+        border: 1px solid #e5e7eb;
+        border-radius: 0.5rem;
+        background: #fff;
+    }
+
+    .cart-row:hover {
+        background: #f9fafb;
+    }
+
+    .cart-info {
+        min-width: 0;
+    }
+
+    .cart-info .name {
+        font-weight: 600;
+        font-size: 0.8125rem;
+        line-height: 1.3;
+        word-break: break-word;
+    }
+
+    .cart-info .sku {
+        font-size: 0.6875rem;
+        color: #6b7280;
+    }
+
+    .cart-info .price {
+        font-size: 0.6875rem;
+        color: #374151;
+        margin-top: 2px;
+    }
+
+    .cart-info .subtotal {
+        font-weight: 700;
+        color: #4f46e5;
+        font-size: 0.8125rem;
+        margin-top: 2px;
+    }
+
+    .qty-controls {
+        display: flex;
+        align-items: center;
+        gap: 4px;
+        flex-shrink: 0;
+    }
+
+    .qty-btn {
+        width: 28px;
+        height: 28px;
+        border-radius: 6px;
+        background: #e5e7eb;
+        border: none;
+        cursor: pointer;
+        font-size: 1rem;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        transition: background 0.15s;
+    }
+
+    .qty-btn:hover:not(:disabled) {
+        background: #d1d5db;
+    }
+
+    .qty-btn:disabled {
+        opacity: 0.4;
+        cursor: not-allowed;
+    }
+
+    .qty-input {
+        width: 40px;
+        text-align: center;
+        border: 1px solid #d1d5db;
+        border-radius: 6px;
+        padding: 2px 4px;
+        font-size: 0.8125rem;
+    }
+
+    .remove-btn {
+        width: 28px;
+        height: 28px;
+        border-radius: 6px;
+        background: #fee2e2;
+        border: none;
+        color: #dc2626;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex-shrink: 0;
+        transition: background 0.15s;
+    }
+
+    .remove-btn:hover {
+        background: #fecaca;
+    }
+
+    /* Product cards grid */
+    .product-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+        gap: 0.75rem;
+    }
+
+    .product-card {
+        border: 1px solid #e5e7eb;
+        border-radius: 10px;
+        padding: 0.75rem;
+        display: flex;
+        flex-direction: column;
+        gap: 0.375rem;
+        background: #fff;
+        transition: box-shadow 0.15s, border-color 0.15s;
+        min-height: 140px;
+    }
+
+    .product-card:hover {
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+        border-color: #c7d2fe;
+    }
+
+    .product-card .p-name {
+        font-size: 0.8rem;
+        font-weight: 600;
+        color: #111827;
+        line-height: 1.3;
+        /* clamp to 2 lines */
+        display: -webkit-box;
+        -webkit-line-clamp: 2;
+        -webkit-box-orient: vertical;
+        overflow: hidden;
+    }
+
+    .product-card .p-sku {
+        font-size: 0.65rem;
+        color: #9ca3af;
+    }
+
+    .product-card .p-price {
+        font-size: 1rem;
+        font-weight: 700;
+        color: #4f46e5;
+    }
+
+    .product-card .p-stock {
+        font-size: 0.65rem;
+        padding: 2px 7px;
+        border-radius: 999px;
+        align-self: flex-start;
+        font-weight: 500;
+    }
+
+    .stock-ok {
+        background: #dcfce7;
+        color: #166534;
+    }
+
+    .stock-low {
+        background: #fef9c3;
+        color: #92400e;
+    }
+
+    .stock-none {
+        background: #fee2e2;
+        color: #991b1b;
+    }
+
+    .add-btn {
+        margin-top: auto;
+        width: 100%;
+        padding: 6px 0;
+        border-radius: 7px;
+        font-size: 0.75rem;
+        font-weight: 600;
+        border: none;
+        cursor: pointer;
+        transition: background 0.15s;
+    }
+
+    .add-btn.available {
+        background: #4f46e5;
+        color: #fff;
+    }
+
+    .add-btn.available:hover {
+        background: #4338ca;
+    }
+
+    .add-btn.out {
+        background: #f3f4f6;
+        color: #9ca3af;
+        cursor: not-allowed;
+    }
+
+    @media(min-width: 1024px) {
+        .pos-wrap {
+            flex-direction: row;
+            align-items: flex-start;
+            height: calc(100vh - 128px);
+        }
+
+        .catalog-panel {
+            flex: 7;
+            display: flex;
+            flex-direction: column;
+            height: 100%;
+            overflow: hidden;
+        }
+
+        .cart-panel {
+            flex: 5;
+            display: flex;
+            flex-direction: column;
+            height: 100%;
+            overflow: hidden;
+        }
+
+        .product-grid {
+            grid-template-columns: repeat(auto-fill, minmax(148px, 1fr));
+        }
+    }
+</style>
+
+<div class="pos-wrap" x-data="posApp()">
+
+    <!-- ══════════════════════════════════════
+         LEFT / TOP:  Catalog
+    ══════════════════════════════════════ -->
+    <div class="catalog-panel bg-white rounded-xl shadow-sm border border-gray-200 flex flex-col overflow-hidden">
+
+        <!-- Header bar: Customer + Product Search -->
+        <div class="p-4 border-b border-gray-100 space-y-3 flex-shrink-0">
+            <!-- Customer search -->
+            <div class="relative">
+                <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                    <i data-lucide="user" class="w-4 h-4 text-gray-400"></i>
+                </div>
+                <input type="text" x-model="customerSearch" @input.debounce.300ms="searchCustomers()"
+                    placeholder="Search customer (name / phone)…"
+                    class="w-full pl-9 pr-4 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500">
+                <!-- Customer dropdown -->
+                <div x-show="customerResults.length > 0" @click.away="customerResults = []"
+                    class="absolute z-30 w-full bg-white shadow-xl rounded-lg mt-1 border border-gray-100 max-h-56 overflow-y-auto">
+                    <template x-for="c in customerResults" :key="c.id">
+                        <div @click="selectCustomer(c)"
+                            class="px-4 py-2.5 hover:bg-indigo-50 cursor-pointer border-b border-gray-50 last:border-0">
+                            <p class="font-medium text-sm text-gray-900" x-text="c.name"></p>
+                            <p class="text-xs text-gray-500" x-text="c.phone + '  •  ' + c.number"></p>
+                        </div>
+                    </template>
+                </div>
+            </div>
+
+            <!-- Selected customer chip -->
+            <div class="flex items-center justify-between min-h-[32px]">
+                <div x-show="selectedCustomer"
+                    class="flex items-center gap-3 bg-indigo-50 border border-indigo-100 px-3 py-1.5 rounded-lg max-w-full overflow-hidden">
+                    <div class="min-w-0">
+                        <p class="text-sm font-semibold text-indigo-900 truncate" x-text="selectedCustomer?.name"></p>
+                        <p class="text-xs text-indigo-600 truncate"
+                            x-text="'Limit: ₦' + formatMoney(selectedCustomer?.credit_limit || 0)"></p>
+                    </div>
+                    <button @click="selectedCustomer = null"
+                        class="text-indigo-400 hover:text-indigo-700 flex-shrink-0">
+                        <i data-lucide="x" class="w-4 h-4"></i>
+                    </button>
+                </div>
+                <button x-show="!selectedCustomer" @click="selectWalkIn()"
+                    class="text-sm text-indigo-600 hover:underline font-medium">
+                    Use Walk-In Customer
+                </button>
+            </div>
+
+            <!-- Product quick-search -->
+            <div class="relative">
+                <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                    <i data-lucide="search" class="w-4 h-4 text-gray-400"></i>
+                </div>
+                <input type="text" x-model="productSearch" @input.debounce.300ms="searchProducts()"
+                    placeholder="Search products by name or SKU…"
+                    class="w-full pl-9 pr-4 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500">
+                <!-- Product search dropdown -->
+                <div x-show="productResults.length > 0" @click.away="productResults = []"
+                    class="absolute z-30 w-full bg-white shadow-xl rounded-lg mt-1 border border-gray-100 max-h-56 overflow-y-auto">
+                    <template x-for="product in productResults" :key="product.id">
+                        <div @click="addToCart(product); productResults = []; productSearch = ''"
+                            class="px-4 py-2.5 hover:bg-indigo-50 cursor-pointer border-b border-gray-50 last:border-0 flex justify-between items-center gap-4">
+                            <div class="min-w-0">
+                                <p class="font-medium text-sm text-gray-900 truncate" x-text="product.name"></p>
+                                <p class="text-xs text-gray-500" x-text="product.sku"></p>
+                            </div>
+                            <div class="text-right flex-shrink-0">
+                                <p class="font-semibold text-indigo-600 text-sm">₦<span
+                                        x-text="formatMoney(product.selling_price)"></span></p>
+                                <p class="text-xs text-gray-400"><span x-text="product.available_stock"></span> in stock
+                                </p>
+                            </div>
+                        </div>
+                    </template>
+                </div>
+            </div>
+        </div>
+
+        <!-- Products grid — scrollable -->
+        <div class="flex-1 overflow-y-auto p-4 bg-gray-50">
+            <div class="flex items-center justify-between mb-3">
+                <h3 class="text-sm font-semibold text-gray-700">Available Products
+                    <span class="ml-1 text-xs text-gray-400 font-normal"
+                        x-text="'(' + availableProducts.length + ' items)'"></span>
+                </h3>
+            </div>
+
+            <div class="product-grid">
+                <template x-for="product in availableProducts" :key="product.id">
+                    <div class="product-card">
+                        <p class="p-name" x-text="product.name"></p>
+                        <p class="p-sku" x-text="product.sku"></p>
+                        <p class="p-price">₦<span x-text="formatMoney(product.selling_price)"></span></p>
+                        <span class="p-stock"
+                            :class="product.available_stock > 10 ? 'stock-ok' : product.available_stock > 0 ? 'stock-low' : 'stock-none'"
+                            x-text="product.available_stock > 0 ? product.available_stock + ' left' : 'Out of stock'">
+                        </span>
+                        <button class="add-btn" :class="product.available_stock > 0 ? 'available' : 'out'"
+                            :disabled="product.available_stock === 0" @click="addToCart(product)">
+                            <span x-show="product.available_stock > 0">+ Add</span>
+                            <span x-show="product.available_stock === 0">Out of Stock</span>
+                        </button>
+                    </div>
+                </template>
+
+                <!-- Empty state -->
+                <div x-show="availableProducts.length === 0"
+                    class="col-span-full flex flex-col items-center justify-center py-16 text-gray-400">
+                    <i data-lucide="package-x" class="w-12 h-12 mb-3 text-gray-300"></i>
+                    <p class="font-medium text-sm">No products available</p>
+                    <p class="text-xs mt-1">Check inventory or contact your admin</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ══════════════════════════════════════
+         RIGHT / BOTTOM: Cart + Checkout
+    ══════════════════════════════════════ -->
+    <div class="cart-panel bg-white rounded-xl shadow-lg border border-gray-200 flex flex-col overflow-hidden">
+
+        <!-- Cart header -->
+        <div class="px-4 py-3 border-b border-gray-100 flex items-center justify-between flex-shrink-0">
+            <h3 class="font-semibold text-gray-800 text-sm">
+                <i data-lucide="shopping-cart" class="w-4 h-4 inline-block mr-1 text-indigo-500"></i>
+                Cart (<span x-text="cart.length"></span>)
+            </h3>
+            <button @click="clearCart()" x-show="cart.length > 0"
+                class="text-xs text-red-500 hover:text-red-700 font-medium transition-colors">
+                Clear All
+            </button>
+        </div>
+
+        <!-- Cart items list — scrollable -->
+        <div class="flex-1 overflow-y-auto p-3 space-y-2 bg-gray-50">
+            <!-- Items -->
+            <div x-show="cart.length > 0">
+                <template x-for="item in cart" :key="item.product_id">
+                    <div class="cart-row">
+                        <!-- Product info column -->
+                        <div class="cart-info">
+                            <p class="name" x-text="item.name"></p>
+                            <p class="sku" x-text="item.sku"></p>
+                            <p class="price">₦<span x-text="formatMoney(item.unit_price)"></span> × <span
+                                    x-text="item.quantity"></span></p>
+                            <p class="subtotal">₦<span x-text="formatMoney(item.subtotal)"></span></p>
+                        </div>
+
+                        <!-- Qty controls column -->
+                        <div class="qty-controls">
+                            <button class="qty-btn"
+                                @click="if(item.quantity > 1){ item.quantity--; updateQuantity(item); }"
+                                :disabled="item.quantity <= 1">−</button>
+                            <input type="number" class="qty-input" x-model.number="item.quantity"
+                                @change="updateQuantity(item)" min="1" :max="item.available_stock">
+                            <button class="qty-btn"
+                                @click="if(item.quantity < item.available_stock){ item.quantity++; updateQuantity(item); }"
+                                :disabled="item.quantity >= item.available_stock">+</button>
+                        </div>
+
+                        <!-- Remove column -->
+                        <button class="remove-btn" @click="removeFromCart(item.product_id)" title="Remove">
+                            <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5"
+                                viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
+                            </svg>
+                        </button>
+                    </div>
+                </template>
+            </div>
+
+            <!-- Empty cart -->
+            <div x-show="cart.length === 0" class="flex flex-col items-center justify-center py-16 text-gray-400">
+                <svg class="w-16 h-16 mb-3 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"
+                        d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z" />
+                </svg>
+                <p class="font-medium text-sm">Cart is empty</p>
+                <p class="text-xs mt-1">Select products to begin</p>
+            </div>
+        </div>
+
+        <!-- Checkout panel — pinned to bottom -->
+        <div class="flex-shrink-0 bg-white border-t border-gray-200 p-4 space-y-4">
+            <!-- Total -->
+            <div class="flex justify-between items-center">
+                <span class="text-base font-semibold text-gray-700">Total</span>
+                <span class="text-2xl font-bold text-gray-900" x-text="'₦' + formatMoney(cartTotal)"></span>
+            </div>
+
+            <!-- Payment modes -->
+            <div class="space-y-2">
+                <p class="text-xs font-semibold text-gray-500 uppercase tracking-wide">Payment Method</p>
+                <div class="grid grid-cols-2 gap-2">
+                    {% for mode in payment_modes %}
+                    <button
+                        @click="setPaymentMode('{{ mode.id }}', '{{ mode.code }}', {{ 'true' if mode.requires_reference else 'false' }}, {{ 'true' if mode.is_credit else 'false' }})"
+                        :class="selectedPaymentModeId == {{ mode.id }}
+                            ? 'bg-indigo-600 text-white border-indigo-600'
+                            : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'"
+                        class="py-2 px-3 border rounded-lg text-sm font-medium transition-colors truncate">
+                        {{ mode.name }}
+                    </button>
+                    {% endfor %}
+                    <button @click="paymentType = 'split'; selectedPaymentModeId = null" :class="paymentType == 'split'
+                            ? 'bg-indigo-600 text-white border-indigo-600'
+                            : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'"
+                        class="py-2 px-3 border rounded-lg text-sm font-medium transition-colors">
+                        Split
+                    </button>
+                </div>
+            </div>
+
+            <!-- Reference input -->
+            <div x-show="requiresReference && paymentType == 'single'">
+                <input type="text" x-model="transactionReference" placeholder="Transaction Reference *"
+                    class="w-full py-2 px-3 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500">
+            </div>
+
+            <!-- Split breakdown -->
+            <div x-show="paymentType == 'split'" class="space-y-2 bg-gray-50 p-3 rounded-lg border border-gray-200">
+                <p class="text-xs font-semibold text-gray-500 uppercase">Split Breakdown</p>
+                <template x-for="(split, index) in splitPayments" :key="index">
+                    <div class="grid grid-cols-3 gap-2 items-center">
+                        <select x-model="split.payment_mode_id"
+                            class="col-span-1 text-xs py-1.5 px-2 border border-gray-300 rounded-lg">
+                            <option value="">Mode</option>
+                            {% for mode in payment_modes %}
+                            {% if not mode.is_credit %}
+                            <option value="{{ mode.id }}">{{ mode.name }}</option>
+                            {% endif %}
+                            {% endfor %}
+                        </select>
+                        <input type="number" x-model.number="split.amount" placeholder="Amount"
+                            class="col-span-1 text-xs py-1.5 px-2 border border-gray-300 rounded-lg">
+                        <input type="text" x-model="split.reference" placeholder="Ref"
+                            class="col-span-1 text-xs py-1.5 px-2 border border-gray-300 rounded-lg">
+                        <button @click="removeSplit(index)" x-show="splitPayments.length > 1"
+                            class="col-span-3 text-xs text-red-500 text-right hover:underline">Remove row</button>
+                    </div>
+                </template>
+                <div class="flex justify-between items-center text-xs mt-1">
+                    <button @click="addSplit()" class="text-indigo-600 hover:underline font-medium">+ Add
+                        Method</button>
+                    <span :class="Math.abs(splitTotal - cartTotal) < 0.01 ? 'text-green-600' : 'text-red-500'"
+                        x-text="'Total: ₦' + formatMoney(splitTotal)"></span>
+                </div>
+            </div>
+
+            <!-- Action buttons -->
+            <div class="grid grid-cols-2 gap-3">
+                <button @click="clearCart()"
+                    class="py-3 bg-white border border-gray-300 text-gray-700 font-semibold rounded-lg hover:bg-gray-50 text-sm transition-colors">
+                    Clear
+                </button>
+                <button @click="processCheckout()" :disabled="cart.length === 0 || processing || !canCheckout"
+                    class="py-3 bg-green-600 text-white font-bold rounded-lg shadow-sm hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center justify-center gap-2 text-sm">
+                    <span x-show="!processing">Checkout</span>
+                    <svg x-show="processing" class="animate-spin w-4 h-4" fill="none" viewBox="0 0 24 24">
+                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" />
+                        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                    </svg>
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    function posApp() {
+        return {
+            cart: [],
+            cartTotal: 0.0,
+            customerSearch: '',
+            customerResults: [],
+            selectedCustomer: null,
+            productSearch: '',
+            productResults: [],
+            availableProducts: [],
+            paymentType: 'single',
+            selectedPaymentModeId: 1,
+            selectedPaymentModeCode: 'CASH',
+            requiresReference: false,
+            isCredit: false,
+            transactionReference: '',
+            splitPayments: [
+                { payment_mode_id: '', amount: 0, reference: '' },
+                { payment_mode_id: '', amount: 0, reference: '' }
+            ],
+            processing: false,
+            outletId: Number("{{ outlet_id or 1 }}"),
+
+            async init() {
+                await this.selectWalkIn();
+                await this.fetchAvailableProducts();
+                await this.fetchCart();
+            },
+
+            async fetchCart() {
+                try {
+                    const res = await fetch('/pos/cart');
+                    if (res.ok) {
+                        const data = await res.json();
+                        this.cart = data.cart || [];
+                        this.cartTotal = data.cart_total || 0;
+                    }
+                } catch (e) { console.error('fetchCart:', e); }
+            },
+
+            async fetchAvailableProducts() {
+                try {
+                    const res = await fetch(`/pos/products/search?outlet_id=${this.outletId}&limit=50`);
+                    this.availableProducts = res.ok ? await res.json() : [];
+                } catch (e) {
+                    this.availableProducts = [];
+                    console.error('fetchProducts:', e);
+                }
+            },
+
+            get splitTotal() {
+                return this.splitPayments.reduce((s, p) => s + (parseFloat(p.amount) || 0), 0);
+            },
+
+            get canCheckout() {
+                if (!this.cart.length || !this.selectedCustomer) return false;
+                if (this.paymentType === 'single') {
+                    if (!this.selectedPaymentModeId) return false;
+                    if (this.requiresReference && !this.transactionReference) return false;
+                    if (this.isCredit) {
+                        const avail = (this.selectedCustomer.credit_limit || 0) - (this.selectedCustomer.current_balance || 0);
+                        if (this.cartTotal > avail) return false;
+                    }
+                } else {
+                    if (Math.abs(this.splitTotal - this.cartTotal) >= 0.01) return false;
+                    for (let s of this.splitPayments) {
+                        if (!s.payment_mode_id || s.amount <= 0) return false;
+                    }
+                }
+                return true;
+            },
+
+            formatMoney(amount) {
+                return parseFloat(amount || 0).toLocaleString('en-NG', {
+                    minimumFractionDigits: 2, maximumFractionDigits: 2
+                });
+            },
+
+            async searchCustomers() {
+                if (this.customerSearch.length < 2) { this.customerResults = []; return; }
+                try {
+                    const res = await fetch(`/customers/search?q=${encodeURIComponent(this.customerSearch)}`);
+                    this.customerResults = res.ok ? await res.json() : [];
+                } catch (e) { this.customerResults = []; }
+            },
+
+            selectCustomer(c) {
+                this.selectedCustomer = c;
+                this.customerSearch = '';
+                this.customerResults = [];
+            },
+
+            async selectWalkIn() {
+                try {
+                    const res = await fetch('/pos/walkin-customer');
+                    if (res.ok) {
+                        const w = await res.json();
+                        if (w && w.id) this.selectCustomer(w);
+                    }
+                } catch (e) { console.error('walkIn:', e); }
+            },
+
+            async searchProducts() {
+                if (this.productSearch.length < 2) { this.productResults = []; return; }
+                try {
+                    const res = await fetch(`/pos/products/search?q=${encodeURIComponent(this.productSearch)}&outlet_id=${this.outletId}`);
+                    this.productResults = res.ok ? await res.json() : [];
+                } catch (e) { this.productResults = []; }
+            },
+
+            async addToCart(product) {
+                try {
+                    const res = await fetch('/pos/cart/add', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json', 'X-CSRFToken': '{{ csrf_token() }}' },
+                        body: JSON.stringify({ product_id: product.id, quantity: 1, outlet_id: this.outletId })
+                    });
+                    const data = await res.json();
+                    if (data.success) {
+                        this.cart = data.cart;
+                        this.cartTotal = data.cart_total;
+                        this.productSearch = '';
+                        this.productResults = [];
+                    } else {
+                        alert(data.error || 'Failed to add product');
+                    }
+                } catch (e) { alert('Failed to add product to cart'); }
+            },
+
+            async updateQuantity(item) {
+                if (item.quantity < 1) item.quantity = 1;
+                if (item.quantity > item.available_stock) {
+                    alert(`Only ${item.available_stock} units available`);
+                    item.quantity = item.available_stock;
+                    return;
+                }
+                try {
+                    const res = await fetch('/pos/cart/update', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json', 'X-CSRFToken': '{{ csrf_token() }}' },
+                        body: JSON.stringify({ product_id: item.product_id, quantity: item.quantity, outlet_id: this.outletId })
+                    });
+                    const data = await res.json();
+                    if (data.success) {
+                        this.cart = data.cart;
+                        this.cartTotal = data.cart_total;
+                    } else {
+                        alert(data.error || 'Failed to update');
+                        await this.fetchCart();
+                    }
+                } catch (e) { console.error('updateQty:', e); }
+            },
+
+            async removeFromCart(productId) {
+                try {
+                    const res = await fetch('/pos/cart/remove', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json', 'X-CSRFToken': '{{ csrf_token() }}' },
+                        body: JSON.stringify({ product_id: productId })
+                    });
+                    const data = await res.json();
+                    if (data.success) { this.cart = data.cart; this.cartTotal = data.cart_total; }
+                } catch (e) { console.error('removeFromCart:', e); }
+            },
+
+            async clearCart() {
+                if (!confirm('Clear entire cart?')) return;
+                try {
+                    const res = await fetch('/pos/cart/clear', {
+                        method: 'POST',
+                        headers: { 'X-CSRFToken': '{{ csrf_token() }}' }
+                    });
+                    if (res.ok) { this.cart = []; this.cartTotal = 0; }
+                } catch (e) { console.error('clearCart:', e); }
+            },
+
+            setPaymentMode(id, code, ref, credit) {
+                this.paymentType = 'single';
+                this.selectedPaymentModeId = id;
+                this.selectedPaymentModeCode = code;
+                this.requiresReference = ref;
+                this.isCredit = credit;
+            },
+
+            addSplit() {
+                this.splitPayments.push({ payment_mode_id: '', amount: 0, reference: '' });
+            },
+
+            removeSplit(index) {
+                if (this.splitPayments.length > 2) this.splitPayments.splice(index, 1);
+            },
+
+            async processCheckout() {
+                if (!this.canCheckout) { alert('Please complete all required fields'); return; }
+                this.processing = true;
+                const payload = {
+                    customer_id: this.selectedCustomer.id,
+                    payment_type: this.paymentType,
+                    payment_mode_id: this.paymentType === 'single' ? this.selectedPaymentModeId : null,
+                    transaction_reference: this.paymentType === 'single' ? this.transactionReference : null,
+                    split_payments: this.paymentType === 'split' ? this.splitPayments : [],
+                    notes: '',
+                    outlet_id: this.outletId
+                };
+                try {
+                    const res = await fetch('/pos/checkout', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json', 'X-CSRFToken': '{{ csrf_token() }}' },
+                        body: JSON.stringify(payload)
+                    });
+                    const data = await res.json();
+                    if (data.success) {
+                        window.location.href = data.redirect;
+                    } else {
+                        alert(data.error || 'Checkout failed');
+                        this.processing = false;
+                    }
+                } catch (e) {
+                    alert('Checkout failed. Please try again.');
+                    this.processing = false;
+                }
+            }
+        }
+    }
+</script>
+{% endblock %}

@@ -1,0 +1,267 @@
+{% extends "base.html" %}
+
+{% block title %}Sales Dashboard - {{ app_name }}{% endblock %}
+
+{% block header_title %}Point of Sale{% endblock %}
+
+{% block content %}
+<!-- Hero / Status Section -->
+<div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
+    <!-- Welcome & Status -->
+    <div
+        class="lg:col-span-2 bg-gradient-to-r from-primary to-indigo-600 rounded-xl shadow-lg p-8 text-white relative overflow-hidden">
+        <div class="relative z-10">
+            <h2 class="text-3xl font-bold font-header mb-2">Hi, {{ current_user.full_name }}</h2>
+            <p class="text-indigo-100 mb-6">Ready to make some sales today? You are logged in at <span
+                    class="font-semibold bg-white/20 px-2 py-0.5 rounded">{{ outlet.name if outlet else 'Unknown Outlet'
+                    }}</span>.</p>
+
+            <div class="flex items-center space-x-4">
+                <a href="{{ url_for('pos.index') }}"
+                    class="px-6 py-3 bg-white text-primary font-bold rounded-lg shadow hover:bg-gray-50 transition transform hover:-translate-y-0.5 flex items-center">
+                    <i data-lucide="shopping-cart" class="w-5 h-5 mr-2"></i> New Sale
+                </a>
+                <a href="{{ url_for('returns.create') }}"
+                    class="px-6 py-3 bg-indigo-700/50 text-white font-semibold rounded-lg hover:bg-indigo-700/70 transition border border-indigo-400/30 flex items-center backdrop-blur-sm">
+                    <i data-lucide="rotate-ccw" class="w-5 h-5 mr-2"></i> Returns
+                </a>
+            </div>
+        </div>
+
+        <!-- Decoration -->
+        <div class="absolute right-0 bottom-0 h-full w-1/2 opacity-10">
+            <svg viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg">
+                <path fill="#FFFFFF"
+                    d="M44.7,-76.4C58.9,-69.2,71.8,-59.1,81.6,-46.6C91.4,-34.1,98.1,-19.2,95.8,-4.9C93.5,9.4,82.2,23.1,70.6,34.3C59.1,45.5,47.3,54.2,35,62.1C22.7,70,10,77.1,-1.9,80.4C-13.8,83.7,-24.8,83.2,-34.7,77.6C-44.6,72,-53.4,61.3,-62.3,50.2C-71.2,39.1,-80.2,27.6,-83.4,14.5C-86.6,1.4,-84,-13.3,-76.3,-25.1C-68.6,-36.9,-55.8,-45.8,-43.3,-53.6C-30.8,-61.4,-18.6,-68.1,-5.6,-70C7.4,-71.9,29.8,-83.6,44.7,-76.4Z"
+                    transform="translate(100 100)" />
+            </svg>
+        </div>
+    </div>
+
+    <!-- Daily Sales Summary -->
+    <div
+        class="bg-white rounded-xl shadow-sm border border-gray-200 p-6 flex flex-col justify-center relative overflow-hidden">
+        <h3 class="text-gray-500 text-sm font-semibold uppercase tracking-wide mb-3">Today's Sales Summary</h3>
+
+        <!-- Total Sales -->
+        <div class="mb-4">
+            <div class="flex items-baseline mb-1">
+                <span class="text-3xl font-bold text-gray-800">₦{{ '{:,.2f}'.format(today_sales) }}</span>
+                <span class="text-sm text-gray-400 ml-2">Total</span>
+            </div>
+
+            <!-- Payment Breakdown -->
+            <div class="space-y-1 mt-3">
+                {% if payment_breakdown %}
+                {% for payment in payment_breakdown %}
+                <div class="flex items-center justify-between text-xs">
+                    <span class="text-gray-600">
+                        <span class="inline-block w-2 h-2 rounded-full mr-1 
+                                {% if payment.is_credit %}bg-orange-400
+                                {% elif payment.code == 'CASH' %}bg-green-400
+                                {% elif payment.code == 'BANK' %}bg-blue-400
+                                {% else %}bg-purple-400{% endif %}">
+                        </span>
+                        {{ payment.name }} ({{ payment.count }})
+                    </span>
+                    <span class="font-semibold text-gray-700">₦{{ '{:,.0f}'.format(payment.total) }}</span>
+                </div>
+                {% endfor %}
+                {% else %}
+                <p class="text-xs text-gray-400 italic">No sales yet today</p>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Real Cash Balance (New Feature) -->
+        <div class="border-t border-gray-200 pt-3 mt-2">
+            <div class="flex items-center justify-between mb-1">
+                <span class="text-xs font-medium text-gray-500 uppercase">Real Cash Balance</span>
+                <i data-lucide="info" class="w-3 h-3 text-gray-400" title="Cash sales minus returns"></i>
+            </div>
+            <div class="flex items-baseline">
+                <span class="text-2xl font-bold 
+                    {% if real_cash_balance >= 0 %}text-green-600{% else %}text-red-600{% endif %}">
+                    ₦{{ '{:,.2f}'.format(real_cash_balance) }}
+                </span>
+            </div>
+            <div class="flex justify-between text-xs text-gray-500 mt-1">
+                <span>Cash: ₦{{ '{:,.0f}'.format(today_cash_sales) }}</span>
+                <span>Returns: ₦{{ '{:,.0f}'.format(today_returns) }}</span>
+            </div>
+        </div>
+
+        <!-- Progress Indicator -->
+        <div class="mt-3">
+            <div class="w-full bg-gray-100 rounded-full h-2">
+                {% set progress = (today_sales / 150000 * 100)|int if today_sales > 0 else 0 %}
+                <div class="bg-green-500 h-2 rounded-full transition-all duration-1000"
+                    style="width: {{ progress if progress <= 100 else 100 }}%"></div>
+            </div>
+            <p class="text-xs text-gray-500 mt-1">
+                {{ progress }}% of ₦150k daily goal
+            </p>
+        </div>
+    </div>
+</div>
+
+<!-- Main Content Grid -->
+<div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+
+    <!-- Left Column: Recent Transactions -->
+    <div class="lg:col-span-2 bg-white rounded-xl shadow-sm border border-gray-200">
+        <div class="px-6 py-4 border-b border-gray-100 flex justify-between items-center">
+            <h3 class="font-semibold text-gray-800">Recent Transactions</h3>
+            <a href="{{ url_for('sales.index') }}" class="text-primary text-sm font-medium hover:underline">View
+                All History</a>
+        </div>
+        <div class="overflow-hidden">
+            {% if my_recent_sales %}
+            <table class="w-full text-left text-sm">
+                <thead class="bg-gray-50 text-gray-500">
+                    <tr>
+                        <th class="px-6 py-3 font-medium">Time</th>
+                        <th class="px-6 py-3 font-medium">Receipt #</th>
+                        <th class="px-6 py-3 font-medium">Customer</th>
+                        <th class="px-6 py-3 font-medium">Total</th>
+                        <th class="px-6 py-3 font-medium">Payment</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-gray-100">
+                    {% for sale in my_recent_sales %}
+                    <tr class="hover:bg-gray-50 cursor-pointer transition-colors group">
+                        <td class="px-6 py-4 text-gray-500">
+                            {{ sale.sale_date.strftime('%I:%M %p') }}
+                        </td>
+                        <td class="px-6 py-4 font-medium text-gray-900 group-hover:text-primary">
+                            <a href="{{ url_for('sales.detail', id=sale.id) }}">{{ sale.sale_number }}</a>
+                        </td>
+                        <td class="px-6 py-4 text-gray-500">
+                            {{ sale.customer.first_name }} {{ sale.customer.last_name[:1] }}.
+                        </td>
+                        <td class="px-6 py-4 font-bold text-gray-800">₦{{ '{:,.2f}'.format(sale.total_amount) }}</td>
+                        <td class="px-6 py-4">
+                            {% if sale.is_split_payment %}
+                            <span class="px-2 py-1 bg-gray-100 text-gray-700 rounded text-xs">Split</span>
+                            {% elif sale.payment_mode %}
+                            {% if sale.payment_mode.is_credit %}
+                            <span class="px-2 py-1 bg-orange-100 text-orange-700 rounded text-xs">Credit</span>
+                            {% elif sale.payment_mode.code == 'CASH' %}
+                            <span class="px-2 py-1 bg-green-100 text-green-700 rounded text-xs">Cash</span>
+                            {% elif sale.payment_mode.code == 'BANK' %}
+                            <span class="px-2 py-1 bg-blue-100 text-blue-700 rounded text-xs">Bank</span>
+                            {% else %}
+                            <span class="px-2 py-1 bg-purple-100 text-purple-700 rounded text-xs">{{
+                                sale.payment_mode.name }}</span>
+                            {% endif %}
+                            {% else %}
+                            <span class="px-2 py-1 bg-gray-300 text-gray-700 rounded text-xs">Unknown</span>
+                            {% endif %}
+                        </td>
+                        {% if sale.payment_mode %}
+                        {% if sale.payment_mode.is_credit %}
+                        <span class="px-2 py-1 bg-orange-100 text-orange-700 rounded text-xs">Credit</span>
+                        {% elif sale.payment_mode.code == 'CASH' %}
+                        <span class="px-2 py-1 bg-green-100 text-green-700 rounded text-xs">Cash</span>
+                        {% elif sale.payment_mode.code == 'BANK' %}
+                        <span class="px-2 py-1 bg-blue-100 text-blue-700 rounded text-xs">Bank</span>
+                        {% else %}
+                        <span class="px-2 py-1 bg-purple-100 text-purple-700 rounded text-xs">{{
+                            sale.payment_mode.name }}</span>
+                        {% endif %}
+                        {% else %}
+                        <span class="px-2 py-1 bg-gray-100 text-gray-700 rounded text-xs">Split</span>
+                        {% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+            {% else %}
+            <div class="px-6 py-12 text-center">
+                <i data-lucide="shopping-bag" class="w-12 h-12 text-gray-300 mx-auto mb-3"></i>
+                <p class="text-gray-500">No sales recorded yet</p>
+                <a href="{{ url_for('pos.index') }}"
+                    class="text-primary text-sm font-medium hover:underline mt-2 inline-block">
+                    Make your first sale
+                </a>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Right Column: Quick Items / Shortcuts -->
+    <div class="space-y-6">
+        <!-- Shortcuts -->
+        <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+            <h3 class="font-semibold text-gray-800 mb-4">Quick Actions</h3>
+            <div class="grid grid-cols-2 gap-4">
+                <a href="{{ url_for('inventory.outlets') }}"
+                    class="p-4 bg-gray-50 rounded-lg hover:bg-indigo-50 hover:text-primary transition flex flex-col items-center justify-center text-center">
+                    <i data-lucide="package" class="w-6 h-6 mb-2 text-gray-400"></i>
+                    <span class="text-xs font-medium text-gray-700">Check Stock</span>
+                </a>
+                <a href="{{ url_for('customers.index') }}"
+                    class="p-4 bg-gray-50 rounded-lg hover:bg-indigo-50 hover:text-primary transition flex flex-col items-center justify-center text-center">
+                    <i data-lucide="users" class="w-6 h-6 mb-2 text-gray-400"></i>
+                    <span class="text-xs font-medium text-gray-700">Customers</span>
+                    <span class="text-xs text-gray-500 mt-1">{{ customers_count }}</span>
+                </a>
+                <a href="{{ url_for('remittance.index') }}"
+                    class="p-4 bg-gray-50 rounded-lg hover:bg-indigo-50 hover:text-primary transition flex flex-col items-center justify-center text-center">
+                    <i data-lucide="wallet" class="w-6 h-6 mb-2 text-gray-400"></i>
+                    <span class="text-xs font-medium text-gray-700">Remittance</span>
+                    {% if my_outstanding > 0 %}
+                    <span class="text-xs text-red-600 font-semibold mt-1">₦{{ '{:,.0f}'.format(my_outstanding) }}</span>
+                    {% endif %}
+                </a>
+                <a href="{{ url_for('expenses.create') }}"
+                    class="p-4 bg-gray-50 rounded-lg hover:bg-indigo-50 hover:text-primary transition flex flex-col items-center justify-center text-center">
+                    <i data-lucide="receipt" class="w-6 h-6 mb-2 text-gray-400"></i>
+                    <span class="text-xs font-medium text-gray-700">Add Expense</span>
+                </a>
+            </div>
+        </div>
+
+        <!-- Performance Summary -->
+        <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+            <h3 class="font-semibold text-gray-800 mb-4">My Performance (30 Days)</h3>
+            <div class="space-y-3">
+                <div>
+                    <div class="flex justify-between text-sm mb-1">
+                        <span class="text-gray-600">Total Sales</span>
+                        <span class="font-bold text-gray-800">₦{{ '{:,.2f}'.format(my_sales) }}</span>
+                    </div>
+                </div>
+                <div>
+                    <div class="flex justify-between text-sm mb-1">
+                        <span class="text-gray-600">Transactions</span>
+                        <span class="font-bold text-gray-800">{{ my_transactions }}</span>
+                    </div>
+                </div>
+                <div>
+                    <div class="flex justify-between text-sm mb-1">
+                        <span class="text-gray-600">Avg. Transaction</span>
+                        <span class="font-bold text-gray-800">
+                            ₦{{ '{:,.2f}'.format(my_sales / my_transactions if my_transactions > 0 else 0) }}
+                        </span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- System Message -->
+        <div class="bg-amber-50 border border-amber-100 rounded-xl p-4">
+            <div class="flex items-start">
+                <i data-lucide="megaphone" class="w-5 h-5 text-amber-500 mr-3 mt-0.5"></i>
+                <div>
+                    <h4 class="text-sm font-semibold text-amber-800">System Notice</h4>
+                    <p class="text-xs text-amber-700 mt-1">
+                        Remember to remit all cash collections at the end of your shift.
+                    </p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

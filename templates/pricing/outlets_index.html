@@ -1,0 +1,48 @@
+{% extends "base.html" %}
+{% block title %}Outlet Price Overrides — {{ app_name }}{% endblock %}
+{% block header_title %}Outlet Price Overrides{% endblock %}
+
+{% block content %}
+<div class="space-y-6">
+
+    <!-- Header -->
+    <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <div>
+            <h2 class="text-2xl font-bold text-gray-900">Outlet Price Overrides</h2>
+            <p class="text-sm text-gray-500 mt-1">Select an outlet to set different prices for specific products at that
+                outlet.</p>
+        </div>
+        <a href="{{ url_for('pricing.index') }}"
+            class="inline-flex items-center px-4 py-2 border border-gray-300 text-gray-700 text-sm font-medium rounded-lg hover:bg-gray-50">
+            <i data-lucide="tags" class="w-4 h-4 mr-2"></i>Global Tier Management
+        </a>
+    </div>
+
+    <!-- Outlets Grid -->
+    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+        {% for outlet in outlets %}
+        <a href="{{ url_for('pricing.outlet_prices', outlet_id=outlet.id) }}"
+            class="bg-white rounded-xl border border-gray-200 shadow-sm p-5 hover:border-indigo-400 hover:shadow-md transition-all group">
+            <div class="flex items-center gap-3">
+                <div
+                    class="w-10 h-10 rounded-lg bg-indigo-50 flex items-center justify-center group-hover:bg-indigo-100 transition-colors">
+                    <i data-lucide="{{ 'warehouse' if outlet.is_warehouse else 'store' }}"
+                        class="w-5 h-5 text-indigo-600"></i>
+                </div>
+                <div class="min-w-0 flex-1">
+                    <p class="font-semibold text-gray-900 truncate">{{ outlet.name }}</p>
+                    <p class="text-xs text-gray-500">{{ outlet.code }}
+                        {% if outlet.is_warehouse %}<span class="ml-1 text-yellow-600 font-medium">(Warehouse)</span>{%
+                        endif %}
+                    </p>
+                </div>
+                <i data-lucide="chevron-right" class="w-4 h-4 text-gray-400 flex-shrink-0"></i>
+            </div>
+        </a>
+        {% else %}
+        <div class="col-span-3 text-center py-10 text-sm text-gray-400 italic">No active outlets found.</div>
+        {% endfor %}
+    </div>
+
+</div>
+{% endblock %}

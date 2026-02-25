@@ -1,0 +1,130 @@
+{% extends "base.html" %}
+{% block title %}Sold Products Report – {{ app_name }}{% endblock %}
+{% block header_title %}Sold Products Report{% endblock %}
+
+{% block content %}
+<div class="space-y-6">
+
+    <!-- Breadcrumb -->
+    <nav class="text-sm text-gray-500">
+        <a href="{{ url_for('reports.index') }}" class="hover:text-gray-800">Reports</a>
+        <span class="mx-2">/</span>
+        <span class="text-gray-800 font-medium">Sold Products</span>
+    </nav>
+
+    <!-- Filter Bar -->
+    <div class="bg-white rounded-xl border border-gray-200 shadow-sm p-5">
+        <form method="GET" class="flex flex-wrap gap-4 items-end">
+            <div>
+                <label class="block text-xs font-medium text-gray-600 mb-1">From Date</label>
+                <input type="date" name="date_from" value="{{ date_from }}"
+                    class="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500">
+            </div>
+            <div>
+                <label class="block text-xs font-medium text-gray-600 mb-1">To Date</label>
+                <input type="date" name="date_to" value="{{ date_to }}"
+                    class="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500">
+            </div>
+            {% if outlets %}
+            <div>
+                <label class="block text-xs font-medium text-gray-600 mb-1">Outlet</label>
+                <select name="outlet_id"
+                    class="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500">
+                    <option value="">All Outlets</option>
+                    {% for outlet in outlets %}
+                    <option value="{{ outlet.id }}" {% if outlet_id==outlet.id %}selected{% endif %}>
+                        {{ outlet.name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            {% endif %}
+            <button type="submit"
+                class="px-4 py-2 bg-indigo-600 text-white text-sm font-medium rounded-lg hover:bg-indigo-700 transition-colors">
+                <i data-lucide="search" class="w-4 h-4 inline-block mr-1"></i>Apply Filter
+            </button>
+        </form>
+    </div>
+
+    <!-- Summary Cards -->
+    <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        <div class="bg-white rounded-xl border border-gray-200 shadow-sm p-5">
+            <p class="text-xs text-gray-500 uppercase font-semibold tracking-wide">Products Sold</p>
+            <p class="text-3xl font-bold text-gray-900 mt-1">{{ rows | length }}</p>
+            <p class="text-xs text-gray-400 mt-1">unique SKUs</p>
+        </div>
+        <div class="bg-white rounded-xl border border-gray-200 shadow-sm p-5">
+            <p class="text-xs text-gray-500 uppercase font-semibold tracking-wide">Total Units Sold</p>
+            <p class="text-3xl font-bold text-indigo-600 mt-1">{{ "{:,}".format(grand_qty) }}</p>
+            <p class="text-xs text-gray-400 mt-1">across {{ grand_tx }} transactions</p>
+        </div>
+        <div class="bg-white rounded-xl border border-gray-200 shadow-sm p-5">
+            <p class="text-xs text-gray-500 uppercase font-semibold tracking-wide">Total Revenue</p>
+            <p class="text-3xl font-bold text-green-600 mt-1">₦{{ "{:,.0f}".format(grand_revenue) }}</p>
+            <p class="text-xs text-gray-400 mt-1">from all sold products</p>
+        </div>
+    </div>
+
+    <!-- Product Ranking Table -->
+    {% if rows %}
+    <div class="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
+        <div class="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
+            <h3 class="font-semibold text-gray-900">
+                <i data-lucide="trending-up" class="w-4 h-4 inline-block mr-2 text-green-600"></i>Product Performance
+                Ranking
+            </h3>
+            <span class="text-xs text-gray-400">{{ date_from }} → {{ date_to }}{% if selected_outlet %} · {{
+                selected_outlet.name }}{% endif %}</span>
+        </div>
+        <div class="overflow-x-auto">
+            <table class="min-w-full text-sm">
+                <thead class="bg-gray-50 text-xs text-gray-500 uppercase">
+                    <tr>
+                        <th class="px-4 py-3 text-left w-8">#</th>
+                        <th class="px-4 py-3 text-left">Product</th>
+                        <th class="px-4 py-3 text-left">SKU</th>
+                        <th class="px-4 py-3 text-left">Unit</th>
+                        <th class="px-4 py-3 text-right">Qty Sold</th>
+                        <th class="px-4 py-3 text-right">Transactions</th>
+                        <th class="px-4 py-3 text-right">Avg Price (₦)</th>
+                        <th class="px-4 py-3 text-right font-semibold">Revenue (₦)</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-gray-100">
+                    {% for row in rows %}
+                    <tr class="hover:bg-gray-50">
+                        <td class="px-4 py-3 text-gray-400 text-xs">{{ loop.index }}</td>
+                        <td class="px-4 py-3 font-medium text-gray-900">{{ row.product_name }}</td>
+                        <td class="px-4 py-3 font-mono text-gray-500 text-xs">{{ row.sku }}</td>
+                        <td class="px-4 py-3 text-gray-500">{{ row.unit }}</td>
+                        <td class="px-4 py-3 text-right font-semibold text-gray-800">{{ "{:,}".format(row.qty_sold) }}
+                        </td>
+                        <td class="px-4 py-3 text-right text-gray-500">{{ row.num_transactions }}</td>
+                        <td class="px-4 py-3 text-right text-gray-600">{{ "{:,.2f}".format(row.avg_price) }}</td>
+                        <td class="px-4 py-3 text-right font-bold text-green-700">{{ "{:,.0f}".format(row.revenue) }}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+                <tfoot class="bg-gray-50 border-t border-gray-200 font-semibold">
+                    <tr>
+                        <td colspan="4" class="px-4 py-3 text-gray-700">TOTALS</td>
+                        <td class="px-4 py-3 text-right text-gray-800">{{ "{:,}".format(grand_qty) }}</td>
+                        <td class="px-4 py-3 text-right text-gray-600">{{ grand_tx }}</td>
+                        <td class="px-4 py-3"></td>
+                        <td class="px-4 py-3 text-right text-green-700 text-base">₦{{ "{:,.0f}".format(grand_revenue) }}
+                        </td>
+                    </tr>
+                </tfoot>
+            </table>
+        </div>
+    </div>
+    {% else %}
+    <div class="bg-white rounded-xl border border-gray-200 shadow-sm py-20 text-center">
+        <i data-lucide="shopping-bag" class="w-12 h-12 mx-auto text-gray-300 mb-4"></i>
+        <p class="text-gray-500 font-medium">No sales recorded in this period.</p>
+        <p class="text-gray-400 text-sm mt-1">Try adjusting your date range or outlet filter.</p>
+    </div>
+    {% endif %}
+
+</div>
+{% endblock %}

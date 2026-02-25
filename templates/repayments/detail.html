@@ -1,0 +1,145 @@
+{% extends "base.html" %}
+
+{% block title %}Repayment Receipt - {{ app_name }}{% endblock %}
+
+{% block content %}
+<div class="container mx-auto px-4 py-8">
+    <div class="max-w-2xl mx-auto">
+        <div class="mb-4 flex justify-between items-center no-print">
+            <a href="{{ url_for('repayments.list_repayments') }}"
+                class="text-gray-600 hover:text-gray-900 flex items-center gap-1">
+                <i data-lucide="arrow-left" class="w-4 h-4"></i> Back to List
+            </a>
+            <div class="flex gap-2">
+                <a href="{{ url_for('repayments.view_ledger', id=repayment.customer_id) }}"
+                    class="bg-gray-100 text-gray-700 px-4 py-2 rounded-lg hover:bg-gray-200 text-sm font-medium">
+                    View Ledger
+                </a>
+                <button onclick="window.print()"
+                    class="bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700 text-sm font-medium flex items-center gap-2">
+                    <i data-lucide="printer" class="w-4 h-4"></i> Print Receipt
+                </button>
+                <a href="{{ url_for('repayments.download_repayment_pdf', id=repayment.id) }}"
+                    class="bg-white text-gray-700 border border-gray-300 px-4 py-2 rounded-lg hover:bg-gray-50 text-sm font-medium flex items-center gap-2">
+                    <i data-lucide="download" class="w-4 h-4"></i> Download PDF
+                </a>
+            </div>
+        </div>
+
+        <!-- Receipt Card -->
+        <div class="bg-white shadow-xl rounded-xl overflow-hidden print:shadow-none print:w-full">
+            <!-- Header -->
+            <div
+                class="bg-gray-800 text-white p-6 text-center print:bg-white print:text-black print:border-b-2 print:border-black">
+                <h1 class="text-2xl font-bold uppercase tracking-widest">Payment Receipt</h1>
+                <p class="opacity-75 mt-1">{{ repayment.outlet.name }}</p>
+                <p class="text-sm opacity-50">{{ repayment.outlet.address or 'Lagos, Nigeria' }}</p>
+            </div>
+
+            <div class="p-8">
+                <!-- Receipt Info -->
+                <div class="flex justify-between items-start mb-8 text-sm">
+                    <div>
+                        <p class="text-gray-500">Repayment No.</p>
+                        <p class="font-bold text-gray-900">{{ repayment.repayment_number }}</p>
+                    </div>
+                    <div class="text-right">
+                        <p class="text-gray-500">Date & Time</p>
+                        <p class="font-bold text-gray-900">{{ repayment.repayment_date.strftime('%d %b %Y, %I:%M %p') }}
+                        </p>
+                        <p class="text-xs text-gray-500 mt-1">Rec: {{ repayment.receiver.username }}</p>
+                    </div>
+                </div>
+
+                <!-- Customer Info -->
+                <div class="border-t border-b border-gray-100 py-4 mb-8">
+                    <p class="text-xs text-gray-500 uppercase tracking-wide mb-2">Received From</p>
+                    <h3 class="text-lg font-bold text-gray-900">{{ repayment.customer.name }}</h3>
+                    <p class="text-gray-600">{{ repayment.customer.phone }}</p>
+                    <p class="text-sm text-gray-500">{{ repayment.customer.customer_number }}</p>
+                </div>
+
+                <!-- Payment Details -->
+                <div class="bg-gray-50 rounded-lg p-6 mb-8 print:bg-white print:border print:border-gray-300">
+                    <div class="flex justify-between items-center mb-2">
+                        <span class="font-medium text-gray-600">Total Amount Paid</span>
+                        <span class="text-3xl font-bold text-green-600">₦{{ "{:,.2f}".format(repayment.amount) }}</span>
+                    </div>
+
+                    <div class="text-sm text-gray-500 text-right mb-4">
+                        {% if repayment.is_split_payment %}
+                        Split Payment
+                        {% else %}
+                        {{ repayment.payment_mode.name }}
+                        {% endif %}
+                    </div>
+
+                    {% if repayment.is_split_payment %}
+                    <div class="border-t border-gray-200 pt-3 mt-3">
+                        {% for payment in repayment.payments %}
+                        <div class="flex justify-between text-sm py-1">
+                            <span class="text-gray-600">{{ payment.payment_mode.name }}</span>
+                            <span class="font-medium">₦{{ "{:,.2f}".format(payment.amount) }}</span>
+                        </div>
+                        {% if payment.transaction_reference %}
+                        <div class="text-xs text-gray-400 pl-2 mb-1">Ref: {{ payment.transaction_reference }}</div>
+                        {% endif %}
+                        {% endfor %}
+                    </div>
+                    {% else %}
+                    {% if repayment.transaction_reference %}
+                    <p class="text-xs text-gray-500 mt-2 text-right">Ref: {{ repayment.transaction_reference }}</p>
+                    {% endif %}
+                    {% endif %}
+                </div>
+
+                <!-- Balance Summary -->
+                <div class="space-y-3 pt-4">
+                    <div class="flex justify-between text-sm">
+                        <span class="text-gray-600">Previous Balance</span>
+                        <span class="font-medium">₦{{ "{:,.2f}".format(repayment.balance_before) }}</span>
+                    </div>
+                    <div class="flex justify-between text-sm">
+                        <span class="text-gray-600">Payment</span>
+                        <span class="font-medium text-red-600">- ₦{{ "{:,.2f}".format(repayment.amount) }}</span>
+                    </div>
+                    <div class="border-t border-gray-200 pt-3 flex justify-between items-center">
+                        <span class="font-bold text-gray-900">Closing Balance</span>
+                        <span class="font-bold text-xl text-gray-900 border-b-2 border-double border-gray-300">₦{{
+                            "{:,.2f}".format(repayment.balance_after) }}</span>
+                    </div>
+                </div>
+
+                <!-- Footer -->
+                <div class="mt-12 text-center text-sm text-gray-500">
+                    <p class="font-medium">Thank you for your payment!</p>
+                    <p class="mt-1 text-xs">Generated by {{ app_name }} System</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+<style>
+    @media print {
+        body * {
+            visibility: hidden;
+        }
+
+        .container,
+        .container * {
+            visibility: visible;
+        }
+
+        .container {
+            position: absolute;
+            left: 0;
+            top: 0;
+            width: 100%;
+        }
+
+        .no-print {
+            display: none !important;
+        }
+    }
+</style>
+{% endblock %}
