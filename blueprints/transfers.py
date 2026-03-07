@@ -392,16 +392,16 @@ def cancel(id):
 
     # Permission check
     is_requester = transfer.requested_by == current_user.id
-    is_super = current_user.role == 'super_admin'
+    is_super = current_user.role in ['super_admin', 'general_manager']
     
     if not (is_super or is_requester):
         flash('Unauthorized.', 'danger')
         return redirect(url_for('transfers.detail', id=id))
 
-    # CRITICAL: If in_transit, usually only Super Admin can cancel (as it involves stock rollback)
+    # CRITICAL: If in_transit, usually only Super Admin/General Manager can cancel (as it involves stock rollback)
     if transfer.status == 'in_transit':
         if not is_super:
-            flash('Only Super Admin can cancel in-transit transfers.', 'danger')
+            flash('Only privileged users can cancel in-transit transfers.', 'danger')
             return redirect(url_for('transfers.detail', id=id))
             
         # ROLLBACK STOCK

@@ -5,6 +5,22 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Login - {{ app_name }}</title>
+
+    <!-- Favicon -->
+    <link rel="icon" type="image/png" href="{{ url_for('static', filename='images/logo.png') }}">
+    <link rel="apple-touch-icon" href="{{ url_for('static', filename='images/logo.png') }}">
+
+    <!-- Open Graph Meta Tags for Brand Identity -->
+    <meta property="og:title" content="Login - {{ app_name }}">
+    <meta property="og:description" content="Sign in to access your {{ app_name }} dashboard.">
+    <meta property="og:image" content="{{ url_for('static', filename='images/logo.png', _external=True) }}">
+    <meta property="og:url" content="{{ request.url }}">
+    <meta property="og:type" content="website">
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:title" content="Login - {{ app_name }}">
+    <meta name="twitter:description" content="Sign in to access your {{ app_name }} dashboard.">
+    <meta name="twitter:image" content="{{ url_for('static', filename='images/logo.png', _external=True) }}">
+
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
         tailwind.config = {
@@ -49,9 +65,8 @@
             <!-- Header -->
             <div class="text-center">
                 <div class="flex justify-center mb-4">
-                    <div class="p-3 bg-primary/10 rounded-full">
-                        <i data-lucide="scan-barcode" class="w-10 h-10 text-primary"></i>
-                    </div>
+                    <img src="{{ url_for('static', filename='images/logo.png') }}" alt="{{ app_name }} Logo"
+                        class="w-20 h-20 object-contain rounded-full bg-white shadow-sm p-1 border border-gray-100">
                 </div>
                 <h1 class="text-3xl font-bold font-header text-gray-900 tracking-tight">Welcome Back</h1>
                 <p class="mt-2 text-sm text-gray-500">Sign in to access your {{ app_name }} dashboard</p>

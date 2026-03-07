@@ -207,7 +207,8 @@
 
                     <!-- Approve / Reject -->
                     {% if transfer.status == 'pending' %}
-                    {% if current_user.role == 'super_admin' or (current_user.role == 'outlet_admin' and
+                    {% if current_user.role in ['super_admin', 'general_manager'] or (current_user.role ==
+                    'outlet_admin' and
                     current_user.outlet_id == transfer.from_outlet_id) %}
                     <form action="{{ url_for('transfers.approve', id=transfer.id) }}" method="POST">
                         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
@@ -226,7 +227,8 @@
 
                     <!-- Dispatch -->
                     {% elif transfer.status == 'approved' %}
-                    {% if current_user.role == 'super_admin' or (current_user.role == 'outlet_admin' and
+                    {% if current_user.role in ['super_admin', 'general_manager'] or (current_user.role ==
+                    'outlet_admin' and
                     current_user.outlet_id == transfer.from_outlet_id) %}
                     <form action="{{ url_for('transfers.dispatch', id=transfer.id) }}" method="POST">
                         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
@@ -242,7 +244,8 @@
 
                     <!-- Receive -->
                     {% elif transfer.status == 'in_transit' %}
-                    {% if current_user.role == 'super_admin' or (current_user.role == 'outlet_admin' and
+                    {% if current_user.role in ['super_admin', 'general_manager'] or (current_user.role ==
+                    'outlet_admin' and
                     current_user.outlet_id == transfer.to_outlet_id) %}
                     <form action="{{ url_for('transfers.receive', id=transfer.id) }}" method="POST">
                         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
@@ -255,8 +258,8 @@
                     <p class="text-sm text-gray-500 text-center italic">Destination must confirm receipt.</p>
                     {% endif %}
 
-                    <!-- Cancel (Super Admin only for In Transit) -->
-                    {% if current_user.role == 'super_admin' %}
+                    <!-- Cancel (Super Admin / General Manager only for In Transit) -->
+                    {% if current_user.role in ['super_admin', 'general_manager'] %}
                     <form action="{{ url_for('transfers.cancel', id=transfer.id) }}" method="POST"
                         class="mt-4 pt-4 border-t border-gray-100">
                         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
@@ -274,7 +277,7 @@
 
                     <!-- Cancel (Pending/Approved) -->
                     {% if transfer.status in ['pending', 'approved'] and (current_user.id == transfer.requested_by or
-                    current_user.role == 'super_admin') %}
+                    current_user.role in ['super_admin', 'general_manager']) %}
                     <form action="{{ url_for('transfers.cancel', id=transfer.id) }}" method="POST"
                         class="mt-4 pt-4 border-t border-gray-100">
                         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">

@@ -7,6 +7,23 @@
     <title>{% block title %}{{ app_name }}{% endblock %}</title>
     <meta name="csrf-token" content="{{ csrf_token() }}">
 
+    <!-- Favicon -->
+    <link rel="icon" type="image/png" href="{{ url_for('static', filename='images/logo.png') }}">
+    <link rel="apple-touch-icon" href="{{ url_for('static', filename='images/logo.png') }}">
+
+    <!-- Open Graph Meta Tags for Brand Identity -->
+    <meta property="og:title" content="{{ app_name }}">
+    <meta property="og:description"
+        content="Manage your outlets, inventory, and sales with a powerful Point of Sale system.">
+    <meta property="og:image" content="{{ url_for('static', filename='images/logo.png', _external=True) }}">
+    <meta property="og:url" content="{{ request.url }}">
+    <meta property="og:type" content="website">
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:title" content="{{ app_name }}">
+    <meta name="twitter:description"
+        content="Manage your outlets, inventory, and sales with a powerful Point of Sale system.">
+    <meta name="twitter:image" content="{{ url_for('static', filename='images/logo.png', _external=True) }}">
+
     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
@@ -66,11 +83,10 @@
         <!-- Logo -->
         <div class="h-16 flex items-center justify-center">
             <a href="{{ url_for('dashboard.index') }}"
-                class="flex items-center gap-3 px-4 py-6 border-b border-gray-800">
-                <div class="p-2 bg-primary rounded-lg shadow-lg">
-                    <i data-lucide="store" class="w-6 h-6 text-white"></i>
-                </div>
-                <span class="text-xl font-bold font-header tracking-wide">{{ app_name }}</span>
+                class="flex items-center gap-3 px-4 py-6 border-b border-gray-800 w-full">
+                <img src="{{ url_for('static', filename='images/logo.png') }}" alt="{{ app_name }} Logo"
+                    class="w-10 h-10 object-contain rounded bg-white shadow-sm flex-shrink-0">
+                <span class="text-xl font-bold font-header tracking-wide truncate">{{ app_name }}</span>
             </a>
         </div>
 
@@ -244,6 +260,16 @@
                 </div>
             </div>
             {% endif %}
+
+            <a href="{{ url_for('remittance.index') }}"
+                class="flex items-center px-4 py-2.5 text-gray-300 hover:bg-gray-700 hover:text-white rounded-lg transition-colors {{ 'bg-primary/90 text-white shadow-md' if 'remittance' in request.endpoint else '' }}">
+                <i data-lucide="wallet" class="w-5 h-5 mr-3"></i> Remittance
+            </a>
+
+            <a href="{{ url_for('expenses.index') }}"
+                class="flex items-center px-4 py-2.5 text-gray-300 hover:bg-gray-700 hover:text-white rounded-lg transition-colors {{ 'bg-primary/90 text-white shadow-md' if 'expenses' in request.endpoint else '' }}">
+                <i data-lucide="receipt" class="w-5 h-5 mr-3"></i> Expenses
+            </a>
 
             <a href="{{ url_for('reports.index') }}"
                 class="flex items-center px-4 py-2.5 text-gray-300 hover:bg-gray-700 hover:text-white rounded-lg transition-colors {{ 'bg-primary/90 text-white shadow-md' if 'reports' in request.endpoint else '' }}">

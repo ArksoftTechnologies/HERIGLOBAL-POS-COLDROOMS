@@ -2,6 +2,8 @@ import os
 from flask import Flask, redirect, url_for, request
 from flask_login import LoginManager
 from flask_wtf.csrf import CSRFProtect, generate_csrf
+from flask_jwt_extended import JWTManager
+from flask_cors import CORS
 from flask_mail import Mail
 from config import config
 from models import db, User
@@ -25,6 +27,11 @@ def create_app(config_name='development'):
     # Initialize Flask-Login
     login_manager = LoginManager()
     login_manager.init_app(app)
+
+    # Initialize CORS and JWT for Mobile API
+    CORS(app)
+    app.config['JWT_SECRET_KEY'] = app.config.get('SECRET_KEY', 'default-jwt-secret-key-2026')
+    jwt = JWTManager(app)
 
     # Initialize CSRF Protection
     csrf = CSRFProtect(app)
@@ -91,6 +98,10 @@ def create_app(config_name='development'):
 
     from blueprints.pricing import pricing_bp
     app.register_blueprint(pricing_bp)
+    
+    from blueprints.api import api_bp
+    csrf.exempt(api_bp)
+    app.register_blueprint(api_bp)
     
     # Root route redirect
     @app.route('/')

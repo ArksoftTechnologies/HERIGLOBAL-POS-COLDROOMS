@@ -111,7 +111,7 @@ def index():
         
     total_collections = (query_col.scalar() or 0) - (query_col_rev.scalar() or 0)
     total_remittances = query_rem.scalar() or 0
-    outstanding_balance = total_collections - total_remittances
+    outstanding_balance = max(0, total_collections - total_remittances)
     
     # Recent Activity
     recent_collections = CashCollection.query
@@ -255,6 +255,15 @@ def record_remittance():
                 sales_rep_id = data.get('sales_rep_id') or current_user.id
                 outlet_id = data.get('outlet_id') or current_user.outlet_id
 
+            # Validate that they are not remitting more than they collected
+            total_col = db.session.query(func.sum(CashCollection.amount)).filter_by(sales_rep_id=sales_rep_id, is_reversal=False).scalar() or 0
+            total_col_rev = db.session.query(func.sum(CashCollection.amount)).filter_by(sales_rep_id=sales_rep_id, is_reversal=True).scalar() or 0
+            total_rem = db.session.query(func.sum(Remittance.amount)).filter_by(sales_rep_id=sales_rep_id).scalar() or 0
+            cur_outstanding = max(0, (total_col - total_col_rev) - total_rem)
+            
+            if amount > cur_outstanding:
+                raise ValueError(f"Cannot remit more than collected amount. Outstanding is ₦{cur_outstanding:,.2f}")
+
             remittance_number = generate_remittance_number()
             
             remittance = Remittance(
@@ -294,9 +303,10 @@ def record_remittance():
     # Calculate outstanding balance for current user
     outstanding_balance = 0
     if current_user.role == 'sales_rep':
-        total_col = db.session.query(func.sum(CashCollection.amount)).filter_by(sales_rep_id=current_user.id).scalar() or 0
+        total_col = db.session.query(func.sum(CashCollection.amount)).filter_by(sales_rep_id=current_user.id, is_reversal=False).scalar() or 0
+        total_col_rev = db.session.query(func.sum(CashCollection.amount)).filter_by(sales_rep_id=current_user.id, is_reversal=True).scalar() or 0
         total_rem = db.session.query(func.sum(Remittance.amount)).filter_by(sales_rep_id=current_user.id).scalar() or 0
-        outstanding_balance = total_col - total_rem
+        outstanding_balance = max(0, (total_col - total_col_rev) - total_rem)
 
     return render_template('remittance/record_remittance.html',
                            payment_modes=payment_modes,
@@ -507,7 +517,7 @@ def outstanding():
             db.session.query(func.sum(Remittance.amount))
             .filter_by(sales_rep_id=rep.id).scalar() or 0
         )
-        outstanding = net_collections - total_rem
+        outstanding = max(0, net_collections - total_rem)
         
         last_remittance = Remittance.query.filter_by(sales_rep_id=rep.id).order_by(Remittance.remittance_date.desc()).first()
         days_overdue = 0
