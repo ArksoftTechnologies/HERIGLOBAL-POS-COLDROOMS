@@ -540,6 +540,14 @@
             processing: false,
             outletId: Number("{{ outlet_id or 1 }}"),
 
+            checkAuthStatus(res) {
+                if (res.status === 401 || res.status === 403) {
+                    window.location.href = '/auth/login';
+                    return false;
+                }
+                return true;
+            },
+
             async init() {
                 await this.selectWalkIn();
                 await this.fetchAvailableProducts();
@@ -549,6 +557,7 @@
             async fetchCart() {
                 try {
                     const res = await fetch('/pos/cart');
+                    if (!this.checkAuthStatus(res)) return;
                     if (res.ok) {
                         const data = await res.json();
                         this.cart = data.cart || [];
@@ -560,6 +569,7 @@
             async fetchAvailableProducts() {
                 try {
                     const res = await fetch(`/pos/products/search?outlet_id=${this.outletId}&limit=50`);
+                    if (!this.checkAuthStatus(res)) return;
                     this.availableProducts = res.ok ? await res.json() : [];
                 } catch (e) {
                     this.availableProducts = [];
@@ -599,6 +609,7 @@
                 if (this.customerSearch.length < 2) { this.customerResults = []; return; }
                 try {
                     const res = await fetch(`/customers/search?q=${encodeURIComponent(this.customerSearch)}`);
+                    if (!this.checkAuthStatus(res)) return;
                     this.customerResults = res.ok ? await res.json() : [];
                 } catch (e) { this.customerResults = []; }
             },
@@ -612,6 +623,7 @@
             async selectWalkIn() {
                 try {
                     const res = await fetch('/pos/walkin-customer');
+                    if (!this.checkAuthStatus(res)) return;
                     if (res.ok) {
                         const w = await res.json();
                         if (w && w.id) this.selectCustomer(w);
@@ -623,6 +635,7 @@
                 if (this.productSearch.length < 2) { this.productResults = []; return; }
                 try {
                     const res = await fetch(`/pos/products/search?q=${encodeURIComponent(this.productSearch)}&outlet_id=${this.outletId}`);
+                    if (!this.checkAuthStatus(res)) return;
                     this.productResults = res.ok ? await res.json() : [];
                 } catch (e) { this.productResults = []; }
             },
@@ -634,6 +647,7 @@
                         headers: { 'Content-Type': 'application/json', 'X-CSRFToken': '{{ csrf_token() }}' },
                         body: JSON.stringify({ product_id: product.id, quantity: 1, outlet_id: this.outletId })
                     });
+                    if (!this.checkAuthStatus(res)) return;
                     const data = await res.json();
                     if (data.success) {
                         this.cart = data.cart;
@@ -659,6 +673,7 @@
                         headers: { 'Content-Type': 'application/json', 'X-CSRFToken': '{{ csrf_token() }}' },
                         body: JSON.stringify({ product_id: item.product_id, quantity: item.quantity, outlet_id: this.outletId })
                     });
+                    if (!this.checkAuthStatus(res)) return;
                     const data = await res.json();
                     if (data.success) {
                         this.cart = data.cart;
@@ -677,6 +692,7 @@
                         headers: { 'Content-Type': 'application/json', 'X-CSRFToken': '{{ csrf_token() }}' },
                         body: JSON.stringify({ product_id: productId })
                     });
+                    if (!this.checkAuthStatus(res)) return;
                     const data = await res.json();
                     if (data.success) { this.cart = data.cart; this.cartTotal = data.cart_total; }
                 } catch (e) { console.error('removeFromCart:', e); }
@@ -689,6 +705,7 @@
                         method: 'POST',
                         headers: { 'X-CSRFToken': '{{ csrf_token() }}' }
                     });
+                    if (!this.checkAuthStatus(res)) return;
                     if (res.ok) { this.cart = []; this.cartTotal = 0; }
                 } catch (e) { console.error('clearCart:', e); }
             },
@@ -727,6 +744,7 @@
                         headers: { 'Content-Type': 'application/json', 'X-CSRFToken': '{{ csrf_token() }}' },
                         body: JSON.stringify(payload)
                     });
+                    if (!this.checkAuthStatus(res)) return;
                     const data = await res.json();
                     if (data.success) {
                         window.location.href = data.redirect;

@@ -1,6 +1,6 @@
 {% extends "base.html" %}
-{% block title %}Stock Received Report – {{ app_name }}{% endblock %}
-{% block header_title %}Stock Received Report{% endblock %}
+{% block title %}Warehouse Receives – {{ app_name }}{% endblock %}
+{% block header_title %}Central Warehouse Receives{% endblock %}
 
 {% block content %}
 <div class="space-y-6">
@@ -9,7 +9,7 @@
     <nav class="text-sm text-gray-500">
         <a href="{{ url_for('reports.index') }}" class="hover:text-gray-800">Reports</a>
         <span class="mx-2">/</span>
-        <span class="text-gray-800 font-medium">Stock Received</span>
+        <span class="text-gray-800 font-medium">Warehouse Receives</span>
     </nav>
 
     <!-- Filter Bar -->
@@ -25,28 +25,17 @@
                 <input type="date" name="date_to" value="{{ date_to }}"
                     class="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500">
             </div>
-            {% if outlets %}
-            <div>
-                <label class="block text-xs font-medium text-gray-600 mb-1">Outlet</label>
-                <select name="outlet_id"
-                    class="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500">
-                    <option value="">All Outlets</option>
-                    {% for outlet in outlets %}
-                    <option value="{{ outlet.id }}" {% if outlet_id==outlet.id %}selected{% endif %}>
-                        {{ outlet.name }}</option>
-                    {% endfor %}
-                </select>
-            </div>
-            {% endif %}
+            <!-- Format PDF param hidden so the filter persists it if present, though not needed here -->
             <button type="submit"
                 class="px-4 py-2 bg-indigo-600 text-white text-sm font-medium rounded-lg hover:bg-indigo-700 transition-colors">
                 <i data-lucide="search" class="w-4 h-4 inline-block mr-1"></i>Apply Filter
             </button>
-            <div class="ml-auto flex space-x-2">
-                <a href="{{ url_for('reports.stock_receive', format='pdf', date_from=date_from, date_to=date_to, outlet_id=outlet_id) }}"
+            <div class="flex-1 text-right">
+                <!-- PDF Download hook added later in the flow -->
+                <a href="{{ url_for('reports.warehouse_receive', date_from=date_from, date_to=date_to, format='pdf') }}"
                    target="_blank"
-                   class="px-4 py-2 bg-white border border-gray-300 text-gray-700 text-sm font-medium rounded-lg hover:bg-gray-50 transition-colors inline-flex items-center">
-                    <i data-lucide="printer" class="w-4 h-4 mr-2"></i>Print PDF
+                   class="px-4 py-2 bg-white border border-gray-300 text-gray-700 text-sm font-medium rounded-lg hover:bg-gray-50 transition-colors inline-block">
+                    <i data-lucide="printer" class="w-4 h-4 inline-block mr-1"></i>Print PDF
                 </a>
             </div>
         </form>
@@ -55,9 +44,9 @@
     <!-- Summary Cards -->
     <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
         <div class="bg-white rounded-xl border border-gray-200 shadow-sm p-5">
-            <p class="text-xs text-gray-500 uppercase font-semibold tracking-wide">Total Lines</p>
+            <p class="text-xs text-gray-500 uppercase font-semibold tracking-wide">Total Adjustment Lines</p>
             <p class="text-3xl font-bold text-gray-900 mt-1">{{ grand_total_lines }}</p>
-            <p class="text-xs text-gray-400 mt-1">receive records in period</p>
+            <p class="text-xs text-gray-400 mt-1">in period for {{ warehouse.name }}</p>
         </div>
         <div class="bg-white rounded-xl border border-gray-200 shadow-sm p-5">
             <p class="text-xs text-gray-500 uppercase font-semibold tracking-wide">Total Units Received</p>
@@ -67,7 +56,7 @@
         <div class="bg-white rounded-xl border border-gray-200 shadow-sm p-5">
             <p class="text-xs text-gray-500 uppercase font-semibold tracking-wide">Unique Products</p>
             <p class="text-3xl font-bold text-gray-900 mt-1">{{ product_totals | length }}</p>
-            <p class="text-xs text-gray-400 mt-1">distinct SKUs received</p>
+            <p class="text-xs text-gray-400 mt-1">distinct SKUs adjusted</p>
         </div>
     </div>
 
@@ -78,8 +67,7 @@
             <h3 class="font-semibold text-gray-900">
                 <i data-lucide="package" class="w-4 h-4 inline-block mr-2 text-indigo-600"></i>Product Summary
             </h3>
-            <span class="text-xs text-gray-400">{{ date_from }} → {{ date_to }}{% if selected_outlet %} · {{
-                selected_outlet.name }}{% endif %}</span>
+            <span class="text-xs text-gray-400">{{ date_from }} → {{ date_to }}</span>
         </div>
         <div class="overflow-x-auto">
             <table class="min-w-full text-sm">
@@ -114,10 +102,10 @@
     </div>
 
     <!-- Detailed Line Items -->
-    <div class="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
+    <div class="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden mb-8">
         <div class="px-6 py-4 border-b border-gray-100">
             <h3 class="font-semibold text-gray-900">
-                <i data-lucide="list" class="w-4 h-4 inline-block mr-2 text-indigo-600"></i>Detailed Receive Lines
+                <i data-lucide="list" class="w-4 h-4 inline-block mr-2 text-indigo-600"></i>Detailed Adjustment Lines
             </h3>
         </div>
         <div class="overflow-x-auto">
@@ -125,11 +113,11 @@
                 <thead class="bg-gray-50 text-xs text-gray-500 uppercase">
                     <tr>
                         <th class="px-6 py-3 text-left">Date</th>
-                        <th class="px-6 py-3 text-left">Transfer #</th>
+                        <th class="px-6 py-3 text-left">Reference #</th>
                         <th class="px-6 py-3 text-left">Product</th>
                         <th class="px-6 py-3 text-left">SKU</th>
-                        <th class="px-6 py-3 text-left">From</th>
-                        <th class="px-6 py-3 text-right">Qty</th>
+                        <th class="px-6 py-3 text-left">Type</th>
+                        <th class="px-6 py-3 text-right">Qty (+ve)</th>
                     </tr>
                 </thead>
                 <tbody class="divide-y divide-gray-100">
@@ -138,11 +126,11 @@
                         <td class="px-6 py-3 text-gray-500 whitespace-nowrap">
                             {{ row.date.strftime('%d %b %Y') if row.date else '—' }}
                         </td>
-                        <td class="px-6 py-3 font-mono text-xs text-indigo-600">{{ row.transfer_number }}</td>
+                        <td class="px-6 py-3 font-mono text-xs text-indigo-600">{{ row.reference_number or 'Manual' }}</td>
                         <td class="px-6 py-3 font-medium text-gray-900">{{ row.product_name }}</td>
                         <td class="px-6 py-3 font-mono text-gray-500 text-xs">{{ row.sku }}</td>
-                        <td class="px-6 py-3 text-gray-500">{{ row.from_outlet }}</td>
-                        <td class="px-6 py-3 text-right font-semibold text-gray-900">{{ "{:,}".format(row.quantity) }}
+                        <td class="px-6 py-3 text-gray-500 capitalize">{{ row.source_type | replace('_', ' ') }}</td>
+                        <td class="px-6 py-3 text-right font-semibold text-green-600">+{{ "{:,}".format(row.quantity) }}
                         </td>
                     </tr>
                     {% endfor %}
@@ -153,9 +141,9 @@
 
     {% else %}
     <div class="bg-white rounded-xl border border-gray-200 shadow-sm py-20 text-center">
-        <i data-lucide="inbox" class="w-12 h-12 mx-auto text-gray-300 mb-4"></i>
-        <p class="text-gray-500 font-medium">No stock received in this period.</p>
-        <p class="text-gray-400 text-sm mt-1">Try adjusting your date range or outlet filter.</p>
+        <i data-lucide="clipboard-list" class="w-12 h-12 mx-auto text-gray-300 mb-4"></i>
+        <p class="text-gray-500 font-medium">No stock adjustment/receive records for central warehouse in this period.</p>
+        <p class="text-gray-400 text-sm mt-1">Try adjusting your date range.</p>
     </div>
     {% endif %}
 

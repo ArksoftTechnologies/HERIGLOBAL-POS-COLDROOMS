@@ -12,8 +12,8 @@ class Config:
     SQLALCHEMY_DATABASE_URI = os.environ.get('DATABASE_URL') or 'sqlite:///heriglobal_pos.db'
     SQLALCHEMY_TRACK_MODIFICATIONS = False
     
-    # Session configuration (8 hours timeout)
-    PERMANENT_SESSION_LIFETIME = timedelta(hours=8)
+    # Session configuration (30 minutes timeout for auto-logout)
+    PERMANENT_SESSION_LIFETIME = timedelta(minutes=30)
     SESSION_COOKIE_SECURE = os.environ.get('SESSION_COOKIE_SECURE', 'False') == 'True'
     SESSION_COOKIE_HTTPONLY = True
     SESSION_COOKIE_SAMESITE = 'Lax'

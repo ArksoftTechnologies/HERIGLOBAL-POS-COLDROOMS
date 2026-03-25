@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Sales by Outlet - {{ app_name }}</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @page {
+            size: A4 portrait;
+            margin: 15mm;
+        }
+        body { font-family: 'Inter', -apple-system, sans-serif; background-color: white; color: #1f2937; }
+        @media print {
+            body { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; margin: 0; }
+            .no-print { display: none !important; }
+            table, tr, td, th { page-break-inside: avoid; }
+        }
+        .header-panel { border-bottom: 2px solid #e5e7eb; padding-bottom: 1rem; margin-bottom: 1.5rem; }
+        .avoid-break { page-break-inside: avoid; }
+    </style>
+</head>
+<body onload="window.print()">
+
+    <div class="header-panel flex justify-between items-end">
+        <div>
+            <h1 class="text-3xl font-bold text-indigo-700">{{ company_name }}</h1>
+            <p class="text-sm text-gray-500 mt-1">{{ app_name }}</p>
+        </div>
+        <div class="text-right">
+            <h2 class="text-xl font-bold text-gray-800">Sales by Outlet Report</h2>
+            <p class="text-sm text-gray-600 mt-1">
+                Period: 
+                <span class="font-medium text-gray-900">{{ date_from }}</span>
+                to 
+                <span class="font-medium text-gray-900">{{ date_to }}</span>
+            </p>
+            {% if selected_outlet %}
+            <p class="text-sm text-gray-600">Filtered for: <span class="font-medium text-gray-900">{{ selected_outlet.name }}</span></p>
+            {% else %}
+            <p class="text-sm text-gray-600">All Outlets Combined</p>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Summary Metrics -->
+    <div class="grid grid-cols-2 gap-4 mb-8 avoid-break">
+        <div class="bg-gray-50 rounded-lg p-4 border border-gray-200 text-center">
+            <p class="text-xs font-semibold text-gray-500 uppercase tracking-wider">Total Transactions</p>
+            <h3 class="text-2xl font-bold text-gray-900 mt-1">{{ "{:,}".format(grand_transactions) }}</h3>
+        </div>
+        <div class="bg-gray-50 rounded-lg p-4 border border-gray-200 text-center">
+            <p class="text-xs font-semibold text-gray-500 uppercase tracking-wider">Total Revenue</p>
+            <h3 class="text-2xl font-bold text-indigo-700 mt-1">₦{{ "{:,.2f}".format(grand_revenue) }}</h3>
+        </div>
+    </div>
+
+    {% if outlet_totals %}
+    <!-- Outlet Summary -->
+    <div class="mb-8 avoid-break">
+        <h3 class="text-sm font-bold text-gray-800 uppercase border-b border-gray-200 pb-2 mb-3">Outlet Performance</h3>
+        <table class="w-full text-sm">
+            <thead>
+                <tr class="bg-gray-100 text-gray-600">
+                    <th class="py-2 px-3 text-left font-medium rounded-l-md w-8">#</th>
+                    <th class="py-2 px-3 text-left font-medium">Outlet Name</th>
+                    <th class="py-2 px-3 text-right font-medium">Sales Count</th>
+                    <th class="py-2 px-3 text-right font-medium">Revenue (₦)</th>
+                    <th class="py-2 px-3 text-right font-medium rounded-r-md">% Share</th>
+                </tr>
+            </thead>
+            <tbody class="divide-y divide-gray-100">
+                {% for row in outlet_totals %}
+                {% set pct = ((row.revenue | float) / grand_revenue * 100) if grand_revenue > 0 else 0 %}
+                <tr>
+                    <td class="py-3 px-3 text-gray-400 text-xs">{{ loop.index }}</td>
+                    <td class="py-3 px-3 font-medium text-gray-900">{{ row.outlet_name }}</td>
+                    <td class="py-3 px-3 text-right text-gray-600">{{ row.transactions }}</td>
+                    <td class="py-3 px-3 text-right font-bold text-gray-900">{{ "{:,.2f}".format(row.revenue) }}</td>
+                    <td class="py-3 px-3 text-right font-medium text-indigo-600">{{ pct | round(1) }}%</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+            <tfoot class="border-t-2 border-gray-200">
+                <tr class="font-bold text-gray-900">
+                    <td colspan="2" class="py-3 px-3">TOTAL</td>
+                    <td class="py-3 px-3 text-right">{{ "{:,}".format(grand_transactions) }}</td>
+                    <td class="py-3 px-3 text-right text-indigo-700">₦{{ "{:,.2f}".format(grand_revenue) }}</td>
+                    <td class="py-3 px-3 text-right">100%</td>
+                </tr>
+            </tfoot>
+        </table>
+    </div>
+
+    {% if daily_rows %}
+    <!-- Detailed Daily Breakdown -->
+    <div class="avoid-break mt-10">
+        <h3 class="text-sm font-bold text-gray-800 uppercase border-b border-gray-200 pb-2 mb-3">Daily Breakdown</h3>
+        <table class="w-full text-sm">
+            <thead>
+                <tr class="bg-gray-100 text-gray-600">
+                    <th class="py-2 px-3 text-left font-medium rounded-l-md font-mono text-xs">Date</th>
+                    <th class="py-2 px-3 text-left font-medium">Outlet</th>
+                    <th class="py-2 px-3 text-right font-medium">Transactions</th>
+                    <th class="py-2 px-3 text-right font-medium rounded-r-md">Revenue (₦)</th>
+                </tr>
+            </thead>
+            <tbody class="divide-y divide-gray-100">
+                {% for row in daily_rows %}
+                <tr>
+                    <td class="py-2 px-3 text-gray-500 font-mono text-xs">{{ row.sale_day }}</td>
+                    <td class="py-2 px-3 font-medium text-gray-900">{{ row.outlet_name }}</td>
+                    <td class="py-2 px-3 text-right text-gray-500">{{ row.transactions }}</td>
+                    <td class="py-2 px-3 text-right font-semibold text-gray-800">{{ "{:,.2f}".format(row.revenue) }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% endif %}
+
+    {% else %}
+    <div class="py-12 text-center text-gray-500 italic">No sales recorded for this period.</div>
+    {% endif %}
+
+    <div class="mt-12 pt-4 border-t border-gray-200 text-xs text-gray-400 flex justify-between">
+        <p>Generated by {{ generated_by }} on {{ generated_at.strftime('%Y-%m-%d %H:%M') }}</p>
+        <p>Page <span class="pageNumber"></span> of <span class="totalPages"></span></p>
+    </div>
+
+    <div class="no-print mt-8 flex justify-center">
+        <button onclick="window.close()" class="px-6 py-2 bg-gray-800 text-white rounded-lg shadow hover:bg-gray-700 font-medium">Close Print View</button>
+    </div>
+
+</body>
+</html>

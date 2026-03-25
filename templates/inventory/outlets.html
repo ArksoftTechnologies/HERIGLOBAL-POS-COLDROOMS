@@ -10,11 +10,37 @@
             <h1 class="text-2xl font-bold text-gray-900 font-header">Multi-Location Inventory</h1>
             <p class="text-sm text-gray-500 mt-1">Real-time stock levels across all outlets.</p>
         </div>
-        <a href="{{ url_for('transfers.create') }}"
-            class="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-lg text-white bg-primary hover:bg-indigo-700 focus:outline-none transition-colors">
-            <i data-lucide="truck" class="w-4 h-4 mr-2"></i> Transfer Stock
-        </a>
+        <div class="flex items-center gap-3">
+            <!-- PDF Download with outlet filter -->
+            <div class="flex items-center gap-2">
+                <select id="pdf-outlet-filter"
+                    class="text-sm border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary bg-white">
+                    <option value="">All Outlets</option>
+                    {% for outlet in outlets %}
+                    <option value="{{ outlet.id }}">{{ outlet.name }}</option>
+                    {% endfor %}
+                </select>
+                <button id="download-pdf-btn"
+                    onclick="downloadInventoryPDF()"
+                    class="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-lg text-white bg-emerald-600 hover:bg-emerald-700 focus:outline-none transition-colors">
+                    <i data-lucide="download" class="w-4 h-4 mr-2"></i> Download PDF
+                </button>
+            </div>
+            <a href="{{ url_for('transfers.create') }}"
+                class="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-lg text-white bg-primary hover:bg-indigo-700 focus:outline-none transition-colors">
+                <i data-lucide="truck" class="w-4 h-4 mr-2"></i> Transfer Stock
+            </a>
+        </div>
     </div>
+
+    <script>
+    function downloadInventoryPDF() {
+        var outletId = document.getElementById('pdf-outlet-filter').value;
+        var url = "{{ url_for('inventory.outlets_pdf') }}";
+        if (outletId) { url += '?outlet_id=' + outletId; }
+        window.open(url, '_blank');
+    }
+    </script>
 
     <div class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
         <div class="overflow-x-auto">

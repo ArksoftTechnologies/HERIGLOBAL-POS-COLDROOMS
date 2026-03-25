@@ -28,10 +28,10 @@
             </button>
 
             <div class="ml-auto flex space-x-2">
-                <button type="button"
-                    class="bg-gray-100 text-gray-700 px-3 py-2 rounded-lg hover:bg-gray-200 text-sm flex items-center">
-                    <i data-lucide="printer" class="w-4 h-4 mr-1"></i> Print
-                </button>
+                <a href="{{ url_for('reports.inventory_low_stock', format='pdf', outlet_id=selected_outlet) }}" target="_blank"
+                    class="bg-white border border-gray-300 text-gray-700 px-3 py-2 rounded-lg hover:bg-gray-50 text-sm flex items-center font-medium transition-colors">
+                    <i data-lucide="printer" class="w-4 h-4 mr-2"></i> Print PDF
+                </a>
                 <button type="button"
                     class="bg-indigo-600 text-white px-3 py-2 rounded-lg hover:bg-indigo-700 text-sm flex items-center">
                     <i data-lucide="shopping-cart" class="w-4 h-4 mr-1"></i> Generate PO

@@ -19,11 +19,15 @@
                 Track revenue, expenses, and generate reports.
             </p>
         </div>
-        <div class="mt-6 md:mt-0 flex gap-3">
-            <button
-                class="px-5 py-2.5 bg-white text-emerald-800 font-semibold rounded-lg shadow hover:bg-gray-50 transition flex items-center">
-                <i data-lucide="download" class="w-4 h-4 mr-2"></i> Export Report
-            </button>
+        <div class="mt-6 md:mt-0 flex flex-wrap gap-3">
+            <a href="{{ url_for('reports.warehouse_receive') }}"
+                class="px-4 py-2 bg-emerald-700 hover:bg-emerald-600 text-white font-medium rounded-lg shadow transition flex items-center text-sm">
+                <i data-lucide="package-plus" class="w-4 h-4 mr-2"></i> Receive Stock Records
+            </a>
+            <a href="{{ url_for('reports.index') }}"
+                class="px-4 py-2 bg-white text-emerald-800 font-semibold rounded-lg shadow hover:bg-gray-50 transition flex items-center text-sm">
+                <i data-lucide="file-bar-chart" class="w-4 h-4 mr-2"></i> General Reports
+            </a>
         </div>
     </div>
 </div>
@@ -33,12 +37,12 @@
     <!-- Revenue -->
     <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-100 flex flex-col justify-between h-32">
         <div class="flex items-center justify-between">
-            <span class="text-gray-500 text-xs font-semibold uppercase">Total Revenue (Month)</span>
+            <span class="text-gray-500 text-xs font-semibold uppercase">Total Revenue (30 Days)</span>
             <i data-lucide="trending-up" class="w-5 h-5 text-green-500"></i>
         </div>
         <div>
-            <h3 class="text-2xl font-bold text-gray-800">₦ 12.4M</h3>
-            <p class="text-xs text-green-600 font-medium">+8.2% vs last month</p>
+            <h3 class="text-2xl font-bold text-gray-800">₦ {{ "{:,.2f}".format(total_revenue) }}</h3>
+            <p class="text-xs text-green-600 font-medium">Completed Sales</p>
         </div>
     </div>
 
@@ -49,32 +53,32 @@
             <i data-lucide="trending-down" class="w-5 h-5 text-red-500"></i>
         </div>
         <div>
-            <h3 class="text-2xl font-bold text-gray-800">₦ 1.8M</h3>
-            <p class="text-xs text-gray-500 font-medium">Within budget</p>
+            <h3 class="text-2xl font-bold text-gray-800">₦ {{ "{:,.2f}".format(total_expenses) }}</h3>
+            <p class="text-xs text-gray-500 font-medium">Last 30 Days</p>
         </div>
     </div>
 
-    <!-- Net Profit -->
+    <!-- Net Profit (Simplified) -->
     <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-100 flex flex-col justify-between h-32">
         <div class="flex items-center justify-between">
-            <span class="text-gray-500 text-xs font-semibold uppercase">Net Profit</span>
+            <span class="text-gray-500 text-xs font-semibold uppercase">Net Position</span>
             <i data-lucide="pie-chart" class="w-5 h-5 text-emerald-500"></i>
         </div>
         <div>
-            <h3 class="text-2xl font-bold text-gray-800">₦ 10.6M</h3>
-            <p class="text-xs text-gray-500 font-medium">Margin: 85%</p>
+            <h3 class="text-2xl font-bold text-gray-800">₦ {{ "{:,.2f}".format(total_revenue - total_expenses) }}</h3>
+            <p class="text-xs text-gray-500 font-medium">Revenue - Expenses</p>
         </div>
     </div>
 
-    <!-- Pending Invoices -->
+    <!-- Outstanding Customer Credit -->
     <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-100 flex flex-col justify-between h-32">
         <div class="flex items-center justify-between">
-            <span class="text-gray-500 text-xs font-semibold uppercase">Pending Remittance</span>
+            <span class="text-gray-500 text-xs font-semibold uppercase">Outstanding Credit</span>
             <i data-lucide="clock" class="w-5 h-5 text-orange-500"></i>
         </div>
         <div>
-            <h3 class="text-2xl font-bold text-gray-800">₦ 450k</h3>
-            <p class="text-xs text-orange-500 font-medium">3 Outlets pending</p>
+            <h3 class="text-2xl font-bold text-gray-800">₦ {{ "{:,.2f}".format(total_outstanding) }}</h3>
+            <p class="text-xs text-orange-500 font-medium">Unpaid customer balances</p>
         </div>
     </div>
 </div>
@@ -84,31 +88,25 @@
     <!-- Unverified Sales -->
     <div class="bg-white rounded-xl shadow-sm border border-gray-200">
         <div class="px-6 py-4 border-b border-gray-100 flex justify-between items-center">
-            <h3 class="font-semibold text-gray-800">Recent Sales needing Verification</h3>
-            <button class="text-sm text-primary hover:underline">Verify All</button>
+            <h3 class="font-semibold text-gray-800">Recent Pending Sales</h3>
+            <a href="{{ url_for('sales.index') }}" class="text-sm text-primary hover:underline">View All</a>
         </div>
         <div class="p-6">
             <div class="space-y-4">
+                {% for sale in pending_sales %}
                 <div class="flex items-center justify-between border-b border-gray-50 pb-4 last:border-0 last:pb-0">
                     <div>
-                        <p class="font-medium text-gray-900">Larger Purchase - Lekki</p>
-                        <p class="text-xs text-gray-500">Ref: INV-0992</p>
+                        <p class="font-medium text-gray-900">{{ sale.customer.name if sale.customer else 'Walk-in' }} - {{ sale.outlet.name if sale.outlet else 'Unknown' }}</p>
+                        <p class="text-xs text-gray-500">Ref: {{ sale.receipt_number }} &bull; {{ sale.sale_date.strftime('%d %b, %H:%M') }}</p>
                     </div>
                     <div class="text-right">
-                        <p class="font-bold text-gray-800">₦ 250,000</p>
+                        <p class="font-bold text-gray-800">₦ {{ "{:,.2f}".format(sale.total_amount) }}</p>
                         <span class="text-xs text-orange-500 bg-orange-50 px-2 py-0.5 rounded">Pending</span>
                     </div>
                 </div>
-                <div class="flex items-center justify-between border-b border-gray-50 pb-4 last:border-0 last:pb-0">
-                    <div>
-                        <p class="font-medium text-gray-900">Bulk Refund - Ikeja</p>
-                        <p class="text-xs text-gray-500">Ref: REF-0021</p>
-                    </div>
-                    <div class="text-right">
-                        <p class="font-bold text-red-600">-₦ 45,000</p>
-                        <span class="text-xs text-orange-500 bg-orange-50 px-2 py-0.5 rounded">Review</span>
-                    </div>
-                </div>
+                {% else %}
+                <p class="text-sm text-gray-500 italic">No pending sales found.</p>
+                {% endfor %}
             </div>
         </div>
     </div>
@@ -117,36 +115,24 @@
     <div class="bg-white rounded-xl shadow-sm border border-gray-200">
         <div class="px-6 py-4 border-b border-gray-100 flex justify-between items-center">
             <h3 class="font-semibold text-gray-800">Expense Requests</h3>
-            <span class="bg-red-100 text-red-600 px-2 py-0.5 rounded text-xs font-bold">2 New</span>
+            {% if pending_expenses %}<span class="bg-red-100 text-red-600 px-2 py-0.5 rounded text-xs font-bold">{{ pending_expenses|length }} Pending</span>{% endif %}
         </div>
         <div class="p-6">
             <div class="space-y-4">
+                {% for expense in pending_expenses %}
                 <div class="flex items-center justify-between">
                     <div>
-                        <p class="font-medium text-gray-900">Generator Fuel</p>
-                        <p class="text-xs text-gray-500">Requested by: Lekki Manager</p>
+                        <p class="font-medium text-gray-900">{{ expense.category.name if expense.category else 'General' }}</p>
+                        <p class="text-xs text-gray-500">Ref: {{ expense.reference_number }} &bull; {{ expense.expense_date.strftime('%d %b') }}</p>
                     </div>
                     <div class="flex items-center gap-3">
-                        <span class="font-bold text-gray-800">₦ 15,000</span>
-                        <button class="p-1 rounded bg-green-100 text-green-600 hover:bg-green-200"><i
-                                data-lucide="check" class="w-4 h-4"></i></button>
-                        <button class="p-1 rounded bg-red-100 text-red-600 hover:bg-red-200"><i data-lucide="x"
-                                class="w-4 h-4"></i></button>
+                        <span class="font-bold text-gray-800">₦ {{ "{:,.2f}".format(expense.amount) }}</span>
+                        <a href="{{ url_for('expenses.index') }}" class="p-1 rounded bg-indigo-50 text-indigo-600 hover:bg-indigo-100" title="View Expenses"><i data-lucide="eye" class="w-4 h-4"></i></a>
                     </div>
                 </div>
-                <div class="flex items-center justify-between">
-                    <div>
-                        <p class="font-medium text-gray-900">Store Repair</p>
-                        <p class="text-xs text-gray-500">Requested by: Ikeja Manager</p>
-                    </div>
-                    <div class="flex items-center gap-3">
-                        <span class="font-bold text-gray-800">₦ 8,500</span>
-                        <button class="p-1 rounded bg-green-100 text-green-600 hover:bg-green-200"><i
-                                data-lucide="check" class="w-4 h-4"></i></button>
-                        <button class="p-1 rounded bg-red-100 text-red-600 hover:bg-red-200"><i data-lucide="x"
-                                class="w-4 h-4"></i></button>
-                    </div>
-                </div>
+                {% else %}
+                <p class="text-sm text-gray-500 italic">No pending expense requests.</p>
+                {% endfor %}
             </div>
         </div>
     </div>

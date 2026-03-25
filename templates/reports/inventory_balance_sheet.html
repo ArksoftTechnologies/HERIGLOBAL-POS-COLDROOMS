@@ -42,6 +42,11 @@
                     class="bg-green-600 text-white px-3 py-2 rounded-lg hover:bg-green-700 text-sm flex items-center">
                     <i data-lucide="download" class="w-4 h-4 mr-1"></i> CSV
                 </button>
+                <a href="{{ url_for('reports.inventory_balance_sheet', format='pdf', date_from=date_from, date_to=date_to, outlet_id=selected_outlet) }}"
+                   target="_blank"
+                   class="px-4 py-2 bg-white border border-gray-300 text-gray-700 text-sm font-medium rounded-lg hover:bg-gray-50 transition-colors inline-flex items-center">
+                    <i data-lucide="printer" class="w-4 h-4 mr-2"></i>Print PDF
+                </a>
             </div>
         </form>
     </div>
@@ -126,8 +131,8 @@
                     <div>
                         <p class="text-sm text-gray-700">
                             Showing <span class="font-medium">{{ (pagination.page - 1) * pagination.per_page + 1
-                                }}</span> to <span class="font-medium">{{ min(pagination.page * pagination.per_page,
-                                pagination.total) }}</span> of <span class="font-medium">{{ pagination.total }}</span>
+                                }}</span> to <span class="font-medium">{{ [pagination.page * pagination.per_page,
+                                pagination.total]|min }}</span> of <span class="font-medium">{{ pagination.total }}</span>
                             items
                         </p>
                     </div>

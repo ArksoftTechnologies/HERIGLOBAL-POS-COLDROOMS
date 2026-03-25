@@ -268,7 +268,7 @@ def api_alerts():
             'category': 'inventory',
             'message': f'{low_stock_count} products critically low in stock',
             'count': low_stock_count,
-            'action_url': url_for('reports.low_stock_alert')
+            'action_url': url_for('reports.inventory_low_stock')
         })
         
     # 2. High Outstanding Remittances (> 100k)

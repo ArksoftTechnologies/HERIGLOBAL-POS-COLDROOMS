@@ -42,6 +42,13 @@
                 class="px-4 py-2 bg-indigo-600 text-white text-sm font-medium rounded-lg hover:bg-indigo-700 transition-colors">
                 <i data-lucide="search" class="w-4 h-4 inline-block mr-1"></i>Apply Filter
             </button>
+            <div class="ml-auto flex space-x-2">
+                <a href="{{ url_for('reports.products_sold', format='pdf', date_from=date_from, date_to=date_to, outlet_id=outlet_id) }}"
+                   target="_blank"
+                   class="px-4 py-2 bg-white border border-gray-300 text-gray-700 text-sm font-medium rounded-lg hover:bg-gray-50 transition-colors inline-flex items-center">
+                    <i data-lucide="printer" class="w-4 h-4 mr-2"></i>Print PDF
+                </a>
+            </div>
         </form>
     </div>
 

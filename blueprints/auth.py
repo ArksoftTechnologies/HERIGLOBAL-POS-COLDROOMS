@@ -124,8 +124,7 @@ def login():
 def logout():
     """Logout user and clear session"""
     logout_user()
-    for key in list(session.keys()):
-        session.pop(key, None)
+    session.clear()
     flash('You have been logged out successfully', 'info')
     return redirect(url_for('auth.login'))
 

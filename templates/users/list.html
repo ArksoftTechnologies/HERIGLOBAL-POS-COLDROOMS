@@ -173,7 +173,7 @@
                         Showing
                         <span class="font-medium">{{ (pagination.page - 1) * pagination.per_page + 1 }}</span>
                         to
-                        <span class="font-medium">{{ min(pagination.page * pagination.per_page, pagination.total)
+                        <span class="font-medium">{{ [pagination.page * pagination.per_page, pagination.total]|min
                             }}</span>
                         of
                         <span class="font-medium">{{ pagination.total }}</span>

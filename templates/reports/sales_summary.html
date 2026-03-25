@@ -54,6 +54,13 @@
                 class="text-gray-500 hover:text-gray-700 text-sm font-medium py-2">
                 Clear
             </a>
+            <div class="ml-auto flex space-x-2">
+                <a href="{{ url_for('reports.sales_summary', format='pdf', date_from=date_from, date_to=date_to, outlet_id=selected_outlet, sales_rep_id=selected_rep) }}"
+                   target="_blank"
+                   class="px-4 py-2 bg-white border border-gray-300 text-gray-700 text-sm font-medium rounded-lg hover:bg-gray-50 transition-colors inline-flex items-center">
+                    <i data-lucide="printer" class="w-4 h-4 mr-2"></i>Print PDF
+                </a>
+            </div>
         </form>
     </div>
 

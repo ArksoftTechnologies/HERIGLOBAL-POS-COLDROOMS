@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Transfer History — {{ app_name }}</title>
+    <title>Inventory Report — {{ app_name }}</title>
     <style>
         /* ── Base ──────────────────────────────────────────────────────── */
         *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -17,9 +17,9 @@
 
         /* ── Page wrapper for screen preview ──────────────────────────── */
         .page {
-            /* Landscape A4 dimensions */
-            width: 297mm;
-            min-height: 210mm;
+            /* Dynamic orientation: landscape if many outlets */
+            width: {% if outlets|length > 4 %}297mm{% else %}210mm{% endif %};
+            min-height: {% if outlets|length > 4 %}210mm{% else %}297mm{% endif %};
             margin: 20px auto;
             background: #fff;
             padding: 16mm 18mm;
@@ -29,7 +29,7 @@
 
         /* ── Print overrides ───────────────────────────────────────────── */
         @page {
-            size: A4 landscape;
+            size: {% if outlets|length > 4 %}A4 landscape{% else %}A4 portrait{% endif %};
             margin: 14mm 16mm 16mm 16mm;
             @bottom-center {
                 content: "Page " counter(page) " of " counter(pages);
@@ -70,9 +70,7 @@
             padding: 12px 16px; flex: 1;
             display: flex; justify-content: space-between; align-items: center;
         }
-        .summary-card-dark {
-            background: #4f46e5; color: #fff; border: none;
-        }
+        .summary-card-dark { background: #4f46e5; color: #fff; border: none; }
         .summary-card h1 { font-size: 14px; font-weight: 700; color: inherit; }
         .stat { text-align: right; }
         .stat-val { font-size: 22px; font-weight: 800; line-height: 1; }
@@ -92,7 +90,7 @@
         thead tr { background: #4f46e5; color: #fff; }
         thead th {
             padding: 7px 8px; text-align: left; font-weight: 600; font-size: 9px;
-            letter-spacing: 0.4px; text-transform: uppercase; white-space: nowrap; overflow: hidden;
+            letter-spacing: 0.4px; text-transform: uppercase; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
         }
         thead th.center { text-align: center; }
         tbody tr:nth-child(even) { background: #f8fafc; }
@@ -103,26 +101,13 @@
         tbody td.center { text-align: center; }
         tbody td.bold { font-weight: 700; color: #0f172a; }
 
-        .sbadge {
-            display: inline-block; padding: 2px 7px; border-radius: 4px;
-            font-size: 8px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.3px;
-        }
-        .s-pending   { background: #fef3c7; color: #92400e; }
-        .s-approved  { background: #dbeafe; color: #1e40af; }
-        .s-transit   { background: #ede9fe; color: #5b21b6; }
-        .s-completed { background: #d1fae5; color: #065f46; }
-        .s-rejected  { background: #fee2e2; color: #991b1b; }
-        .s-cancelled { background: #f1f5f9; color: #475569; }
+        .qty-zero { opacity: 0.3; }
+        .qty-low  { color: #d97706; font-weight: 700; }
+        .qty-ok   { color: #0f172a; font-weight: 600; }
 
-        .col-no  { width: 30px; }
-        .col-ref { width: 90px; }
-        .col-prd { width: 190px; }
-        .col-frm { width: 130px; }
-        .col-to  { width: 130px; }
-        .col-qty { width: 50px; text-align: center; }
-        .col-sta { width: 80px; text-align: center; }
-        .col-dt  { width: 80px; text-align: center; }
-        .col-req { width: auto; } /* takes remaining space */
+        td.total-col { background: #f1f5f9; font-weight: 800; text-align: center; border-left: 1px solid #e2e8f0; }
+        tfoot tr td { background: #1e293b !important; color: #fff; font-weight: 700; text-align: center; padding: 8px; }
+        tfoot tr td.lbl-col { text-align: left; opacity: 0.8; text-transform: uppercase; letter-spacing: 1px; font-size: 8.5px; }
 
         /* ── Empty state ── */
         .empty-row td { text-align: center; padding: 32px; color: #94a3b8; font-style: italic; }
@@ -135,7 +120,8 @@
 
         /* ── Print toolbar (screen only) ─────────────────────────────────── */
         .print-toolbar {
-            width: 297mm; margin: 0 auto 12px;
+            width: {% if outlets|length > 4 %}297mm{% else %}210mm{% endif %};
+            margin: 0 auto 12px;
             display: flex; justify-content: flex-end; gap: 8px;
         }
         .btn {
@@ -161,10 +147,10 @@
         <div class="doc-header">
             <div>
                 <div class="company-name">{{ company_name }}</div>
-                <div class="company-sub">Point of Sale System &mdash; {{ company_tagline }}</div>
+                <div class="company-sub">Point of Sale System &mdash; Inventory Report</div>
             </div>
             <div class="doc-meta">
-                <div><strong>Document:</strong> Transfer History</div>
+                <div><strong>Document:</strong> Multi-Location Inventory Balances</div>
                 <div><strong>Generated:</strong> {{ generated_at.strftime('%d %B %Y, %I:%M %p') }}</div>
                 <div><strong>Prepared by:</strong> {{ generated_by }}</div>
             </div>
@@ -173,23 +159,22 @@
         <!-- Summary & Filters -->
         <div class="top-row">
             <div class="filter-bar">
-                <span>🔖 <strong>Status:</strong> {{ filters.status|title if filters.status and filters.status != 'all' else 'All' }}</span>
-                {% if filters.date_from %}<span>📅 <strong>From:</strong> {{ filters.date_from }}</span>{% endif %}
-                {% if filters.date_to %}<span>📅 <strong>To:</strong> {{ filters.date_to }}</span>{% endif %}
-                {% if not filters.date_from and not filters.date_to %}<span>📅 <strong>Period:</strong> All Time</span>{% endif %}
+                <span>📍 <strong>Outlet Filter:</strong> {{ selected_outlet.name if selected_outlet else 'All Outlets' }}</span>
+                <span style="opacity: 0.5;">|</span>
+                <span>📦 <strong>Products Displayed:</strong> {{ products|length }}</span>
             </div>
 
             <div class="summary-card">
-                <div><h1 style="color:#64748b">Records</h1></div>
+                <div><h1 style="color:#64748b">Stock Lines</h1></div>
                 <div class="stat">
-                    <div class="stat-val" style="color:#0f172a;">{{ total_count }}</div>
-                    <div class="stat-lbl">Transfers</div>
+                    <div class="stat-val" style="color:#0f172a;">{{ total_products }}</div>
+                    <div class="stat-lbl">Items w/ Stock</div>
                 </div>
             </div>
             <div class="summary-card summary-card-dark">
-                <div><h1>Volume</h1></div>
+                <div><h1>Inventory</h1></div>
                 <div class="stat">
-                    <div class="stat-val">{{ total_qty|int }}</div>
+                    <div class="stat-val">{{ grand_total }}</div>
                     <div class="stat-lbl" style="color:#c7d2fe;">Total Units</div>
                 </div>
             </div>
@@ -198,61 +183,66 @@
         <!-- Table -->
         <table>
             <colgroup>
-                <col class="col-no">
-                <col class="col-ref">
-                <col class="col-prd">
-                <col class="col-frm">
-                <col class="col-to">
-                <col class="col-qty">
-                <col class="col-sta">
-                <col class="col-dt">
-                <col class="col-req">
+                <col style="width: auto;">
+                {% for outlet in outlets %}
+                <col style="width: 76px;">
+                {% endfor %}
+                <col style="width: 66px;">
             </colgroup>
             <thead>
                 <tr>
-                    <th>#</th>
-                    <th>Transfer No.</th>
                     <th>Product</th>
-                    <th>From Outlet</th>
-                    <th>To Outlet</th>
-                    <th class="center">Qty</th>
-                    <th class="center">Status</th>
-                    <th class="center">Date</th>
-                    <th>Requested By</th>
+                    {% for outlet in outlets %}
+                    <th class="center" title="{{ outlet.name }}">{{ outlet.name }}</th>
+                    {% endfor %}
+                    <th class="center" style="background:#3730a3;">Total</th>
                 </tr>
             </thead>
             <tbody>
-                {% for t in transfers %}
+                {% for product in products %}
+                {% set row_total = row_totals.get(product.id, 0) %}
                 <tr>
-                    <td style="color:#94a3b8">{{ loop.index }}</td>
-                    <td class="bold">{{ t.transfer_number }}</td>
-                    <td class="bold">{{ t.product.name }}</td>
-                    <td>{{ t.from_outlet.name }}</td>
-                    <td>{{ t.to_outlet.name }}</td>
-                    <td class="center bold text-indigo-700">{{ t.quantity }}</td>
-                    <td class="center">
-                        {% if t.status == 'pending' %}<span class="sbadge s-pending">Pending</span>
-                        {% elif t.status == 'approved' %}<span class="sbadge s-approved">Approved</span>
-                        {% elif t.status == 'in_transit' %}<span class="sbadge s-transit">In Transit</span>
-                        {% elif t.status == 'completed' %}<span class="sbadge s-completed">Completed</span>
-                        {% elif t.status == 'rejected' %}<span class="sbadge s-rejected">Rejected</span>
-                        {% elif t.status == 'cancelled' %}<span class="sbadge s-cancelled">Cancelled</span>
-                        {% endif %}
+                    <td class="bold">{{ product.name }}</td>
+                    
+                    {% for outlet in outlets %}
+                    {% set qty = stock_map.get((product.id, outlet.id), 0) %}
+                    <td class="center
+                        {% if qty == 0 %}qty-zero
+                        {% elif qty <= product.reorder_level %}qty-low
+                        {% else %}qty-ok{% endif %}">
+                        {% if qty == 0 %}—{% else %}{{ qty }}{% endif %}
                     </td>
-                    <td class="center" style="color:#64748b;">{{ t.requested_at.strftime('%d %b %Y') }}</td>
-                    <td>{% if t.requester %}{{ t.requester.username }}{% else %}—{% endif %}</td>
+                    {% endfor %}
+
+                    <td class="total-col">{{ row_total if row_total > 0 else '—' }}</td>
                 </tr>
                 {% else %}
                 <tr class="empty-row">
-                    <td colspan="9">No transfer records found matching your filters.</td>
+                    <td colspan="{{ outlets|length + 2 }}">No products found matching your filters.</td>
                 </tr>
                 {% endfor %}
             </tbody>
+            <tfoot>
+                <tr>
+                    <td class="lbl-col">Total Units by Outlet</td>
+                    {% for outlet in outlets %}
+                    <td>{{ outlet_totals.get(outlet.id, 0) }}</td>
+                    {% endfor %}
+                    <td style="background:#0f172a !important;">{{ grand_total }}</td>
+                </tr>
+            </tfoot>
         </table>
+
+        <!-- Legend -->
+        <div style="margin-top:12px; font-size:8.5px; color:#64748b; display:flex; gap:16px;">
+            <span><strong style="color:#d97706;">■</strong> Low Stock / Reorder</span>
+            <span><strong style="color:#cbd5e1;">■</strong> Out of Stock (—)</span>
+            <span><strong style="color:#0f172a;">■</strong> Adequate Stock</span>
+        </div>
 
         <!-- Footer -->
         <div class="doc-footer">
-            <span>{{ app_name | upper }} POS System &mdash; Transfer History Report</span>
+            <span>{{ app_name | upper }} POS System &mdash; Multi-Location Inventory Report</span>
             <span>This is a computer-generated document. No signature required.</span>
         </div>
     </div>

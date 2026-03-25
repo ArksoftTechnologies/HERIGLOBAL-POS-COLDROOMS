@@ -1,0 +1,222 @@
+{% extends "base.html" %}
+
+{% block title %}Stock Trial Balance{% endblock %}
+
+{% block header_title %}Stock Trial Balance{% endblock %}
+
+{% block content %}
+<div class="space-y-6">
+    <!-- Filters -->
+    <div class="bg-white rounded-xl shadow-sm p-4 border border-gray-100">
+        <form method="get" class="flex flex-wrap items-end gap-4">
+            <div class="w-full sm:w-auto">
+                <label class="block text-sm font-medium text-gray-700 mb-1">Outlet</label>
+                <select name="outlet_id" class="rounded-lg border-gray-300 shadow-sm focus:border-primary focus:ring-primary text-sm w-full sm:w-64">
+                    {% for o in all_outlets %}
+                    <option value="{{ o.id }}" {% if o.id == outlet.id %}selected{% endif %}>{{ o.name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <div class="w-full sm:w-auto">
+                <label class="block text-sm font-medium text-gray-700 mb-1">Date Range</label>
+                <div class="flex items-center space-x-2">
+                    <input type="date" name="date_from" value="{{ date_from }}"
+                        class="rounded-lg border-gray-300 shadow-sm focus:border-primary focus:ring-primary text-sm">
+                    <span class="text-gray-500">to</span>
+                    <input type="date" name="date_to" value="{{ date_to }}"
+                        class="rounded-lg border-gray-300 shadow-sm focus:border-primary focus:ring-primary text-sm">
+                </div>
+            </div>
+
+            <button type="submit"
+                class="bg-primary text-white px-4 py-2 rounded-lg hover:bg-indigo-700 transition-colors text-sm font-medium">
+                Apply Filters
+            </button>
+            
+            <div class="ml-auto flex space-x-2">
+                <a href="{{ url_for('reports.inventory_trial_balance', format='pdf', outlet_id=outlet.id, date_from=date_from, date_to=date_to) }}"
+                   target="_blank"
+                   class="px-4 py-2 bg-white border border-gray-300 text-gray-700 text-sm font-medium rounded-lg hover:bg-gray-50 transition-colors inline-flex items-center">
+                    <i data-lucide="printer" class="w-4 h-4 mr-2"></i>Print PDF
+                </a>
+            </div>
+        </form>
+    </div>
+
+    <!-- Stats Summary -->
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div class="bg-white p-6 rounded-xl border border-gray-100 shadow-sm">
+            <p class="text-xs text-gray-500 uppercase font-semibold tracking-wide">Balanced Records</p>
+            <div class="flex items-center mt-2">
+                {% set balanced_count = data|selectattr('is_balanced', 'true')|list|length %}
+                <h3 class="text-2xl font-bold text-gray-800">{{ balanced_count }}</h3>
+                <span class="ml-2 px-2 py-0.5 bg-green-100 text-green-700 text-xs rounded-full font-medium">OK</span>
+            </div>
+        </div>
+        <div class="bg-white p-6 rounded-xl border border-gray-100 shadow-sm">
+            <p class="text-xs text-gray-500 uppercase font-semibold tracking-wide">Imbalanced Records</p>
+            <div class="flex items-center mt-2">
+                {% set imbalanced_count = data|selectattr('is_balanced', 'false')|list|length %}
+                <h3 class="text-2xl font-bold text-red-600">{{ imbalanced_count }}</h3>
+                <span class="ml-2 px-2 py-0.5 bg-red-100 text-red-700 text-xs rounded-full font-medium">Audit Needed</span>
+            </div>
+        </div>
+        <div class="bg-white p-6 rounded-xl border border-gray-100 shadow-sm">
+            <p class="text-xs text-gray-500 uppercase font-semibold tracking-wide">Reporting Outlet</p>
+            <h3 class="text-xl font-bold text-gray-800 mt-2">{{ outlet.name }}</h3>
+        </div>
+    </div>
+
+    <!-- Detailed Table -->
+    <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+        <div class="p-6 border-b border-gray-100 flex justify-between items-center">
+            <h3 class="text-lg font-semibold text-gray-800">Reconciliation Breakdown</h3>
+        </div>
+        <div class="overflow-x-auto">
+            <table class="min-w-full divide-y divide-gray-200">
+                <thead class="bg-gray-50">
+                    <tr>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Product</th>
+                        <th class="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Received</th>
+                        <th class="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Sold</th>
+                        <th class="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Calc Balance</th>
+                        <th class="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Actual Stock</th>
+                        <th class="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                    </tr>
+                </thead>
+                <tbody class="bg-white divide-y divide-gray-200">
+                    {% for item in data %}
+                    <tr class="hover:bg-gray-50 transition-colors">
+                        <td class="px-6 py-4 whitespace-nowrap">
+                            <div class="text-sm font-medium text-gray-900">{{ item.name }}</div>
+                            <div class="text-xs text-gray-500">{{ item.sku }}</div>
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap text-center text-sm text-gray-600">
+                            {{ item.received }}
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap text-center text-sm text-gray-600">
+                            {{ item.sold }}
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap text-center text-sm font-semibold text-indigo-600">
+                            {{ item.calc_balance }}
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap text-center text-sm font-bold text-gray-900">
+                            {{ item.actual_stock }}
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap text-center">
+                            <div class="flex items-center justify-center space-x-2">
+                                {% if item.is_balanced %}
+                                <span class="inline-flex items-center justify-center p-1 bg-green-100 text-green-600 rounded-full h-8 w-8" title="Balanced">
+                                    <i data-lucide="check-circle-2" class="w-5 h-5"></i>
+                                </span>
+                                {% else %}
+                                <span class="inline-flex items-center justify-center p-1 bg-red-100 text-red-600 rounded-full h-8 w-8" title="Imbalanced">
+                                    <i data-lucide="x-circle" class="w-5 h-5"></i>
+                                </span>
+                                <button type="button" 
+                                        onclick="showAuditModal('{{ item.name }}', '{{ item.sku }}', '{{ item.opening }}', '{{ item.received }}', '{{ item.sold }}', '{{ item.transferred_out }}', '{{ item.other_out }}', '{{ item.system_expected }}', '{{ item.actual_stock }}', '{{ item.reasons|join('|') }}')"
+                                        class="p-1.5 bg-indigo-50 text-indigo-600 rounded-lg hover:bg-indigo-100 transition-colors"
+                                        title="View Audit">
+                                    <i data-lucide="eye" class="w-4 h-4"></i>
+                                </button>
+                                {% endif %}
+                            </div>
+                        </td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="6" class="px-6 py-12 text-center text-gray-500 italic">No inventory records found for this outlet.</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- Audit Modal -->
+<div id="auditModal" class="fixed inset-0 z-50 hidden overflow-y-auto">
+    <div class="flex items-center justify-center min-h-screen px-4 pt-4 pb-20 text-center sm:block sm:p-0">
+        <div class="fixed inset-0 transition-opacity bg-gray-500 bg-opacity-75" onclick="closeAuditModal()"></div>
+        <span class="hidden sm:inline-block sm:align-middle sm:h-screen"></span>
+        <div class="inline-block overflow-hidden text-left align-bottom transition-all transform bg-white rounded-xl shadow-xl sm:my-8 sm:align-middle sm:max-w-lg sm:w-full border border-gray-100">
+            <div class="px-6 py-4 bg-gray-50 border-b border-gray-100 flex justify-between items-center">
+                <h3 class="text-lg font-bold text-gray-900" id="modalProductName">Stock Audit</h3>
+                <button onclick="closeAuditModal()" class="text-gray-400 hover:text-gray-500">
+                    <i data-lucide="x" class="w-5 h-5"></i>
+                </button>
+            </div>
+            <div class="px-6 py-6 space-y-4">
+                <div class="grid grid-cols-2 gap-4 text-sm">
+                    <div class="p-3 bg-gray-50 rounded-lg">
+                        <p class="text-xs text-gray-500 uppercase">Starting Balance</p>
+                        <p class="text-lg font-bold" id="modalOpening">0</p>
+                    </div>
+                    <div class="p-3 bg-green-50 rounded-lg border border-green-100">
+                        <p class="text-xs text-green-600 uppercase">Total Received</p>
+                        <p class="text-lg font-bold text-green-700" id="modalReceived">0</p>
+                    </div>
+                    <div class="p-3 bg-red-50 rounded-lg border border-red-100">
+                        <p class="text-xs text-red-600 uppercase">Total Sold</p>
+                        <p class="text-lg font-bold text-red-700" id="modalSold">0</p>
+                    </div>
+                    <div class="p-3 bg-orange-50 rounded-lg border border-orange-100">
+                        <p class="text-xs text-orange-600 uppercase">Transferred Out</p>
+                        <p class="text-lg font-bold text-orange-700" id="modalTransfers">0</p>
+                    </div>
+                    <div class="p-3 bg-gray-100 rounded-lg col-span-2 flex justify-between items-center">
+                        <p class="text-xs text-gray-700 uppercase font-bold">System Expected</p>
+                        <p class="text-xl font-black text-indigo-700" id="modalExpected">0</p>
+                    </div>
+                    <div class="p-3 bg-indigo-700 rounded-lg col-span-2 flex justify-between items-center text-white">
+                        <p class="text-xs uppercase font-bold">Actual Inventory</p>
+                        <p class="text-xl font-black" id="modalActual">0</p>
+                    </div>
+                </div>
+
+                <div class="mt-4">
+                    <h4 class="text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">Imbalance Explanation</h4>
+                    <ul id="modalReasons" class="space-y-2 text-sm text-gray-600 bg-red-50 p-4 rounded-lg border border-red-100">
+                        <!-- Reasons will be injected here -->
+                    </ul>
+                </div>
+            </div>
+            <div class="px-6 py-4 bg-gray-50 border-t border-gray-100 flex justify-end">
+                <button onclick="closeAuditModal()" class="px-4 py-2 bg-white border border-gray-300 rounded-lg text-sm font-medium hover:bg-gray-50">Close</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+function showAuditModal(name, sku, opening, received, sold, transfers, other, expected, actual, reasonsStr) {
+    document.getElementById('modalProductName').innerText = name + ' (' + sku + ')';
+    document.getElementById('modalOpening').innerText = opening;
+    document.getElementById('modalReceived').innerText = '+' + received;
+    document.getElementById('modalSold').innerText = '-' + sold;
+    document.getElementById('modalTransfers').innerText = '-' + transfers;
+    document.getElementById('modalExpected').innerText = expected;
+    document.getElementById('modalActual').innerText = actual;
+    
+    const reasonsList = document.getElementById('modalReasons');
+    reasonsList.innerHTML = '';
+    const reasons = reasonsStr.split('|');
+    reasons.forEach(reason => {
+        if (reason.trim()) {
+            const li = document.createElement('li');
+            li.className = 'flex items-start';
+            li.innerHTML = '<i data-lucide="info" class="w-4 h-4 mr-2 text-red-500 mt-0.5 shrink-0"></i><span>' + reason + '</span>';
+            reasonsList.appendChild(li);
+        }
+    });
+    
+    document.getElementById('auditModal').classList.remove('hidden');
+    if (typeof lucide !== 'undefined') lucide.createIcons();
+}
+
+function closeAuditModal() {
+    document.getElementById('auditModal').classList.add('hidden');
+}
+</script>
+{% endblock %}

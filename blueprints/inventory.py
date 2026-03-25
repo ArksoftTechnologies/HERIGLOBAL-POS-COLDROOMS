@@ -1,7 +1,9 @@
-from flask import Blueprint, render_template, request, abort
+from flask import Blueprint, render_template, request, abort, current_app, make_response
 from flask_login import login_required, current_user
 from models import db, Product, Inventory, Outlet
 from utils.decorators import role_required
+from utils.pdf_generator import PDFGenerator
+from datetime import datetime
 
 inventory_bp = Blueprint('inventory', __name__)
 
@@ -98,6 +100,47 @@ def outlets():
                            outlets=all_outlets, 
                            products=products, 
                            stock_map=stock_map)
+
+
+@inventory_bp.route('/inventory/outlets/pdf')
+@login_required
+@role_required(['super_admin', 'general_manager'])
+def outlets_pdf():
+    """Download inventory-across-outlets report as PDF. Filterable by outlet."""
+    outlet_id = request.args.get('outlet_id', '', type=str)
+
+    all_outlets = Outlet.query.filter_by(is_active=True).order_by(Outlet.id).all()
+    products    = Product.query.filter_by(is_active=True).order_by(Product.name).all()
+
+    # If a specific outlet is chosen, restrict to that outlet only
+    selected_outlet = None
+    if outlet_id:
+        try:
+            oid = int(outlet_id)
+            selected_outlet = Outlet.query.get(oid)
+            display_outlets = [selected_outlet] if selected_outlet else all_outlets
+        except (ValueError, TypeError):
+            display_outlets = all_outlets
+    else:
+        display_outlets  = all_outlets
+
+    # Build stock map for the display outlets
+    inventory_records = Inventory.query.filter(
+        Inventory.outlet_id.in_([o.id for o in display_outlets])
+    ).all()
+    stock_map = {(inv.product_id, inv.outlet_id): inv.quantity for inv in inventory_records}
+
+    html_content = PDFGenerator.generate_inventory_outlets_pdf(
+        products=products,
+        outlets=display_outlets,
+        stock_map=stock_map,
+        all_outlets=all_outlets,
+        selected_outlet=selected_outlet,
+        generated_by=current_user.full_name,
+    )
+    response = make_response(html_content)
+    response.headers['Content-Type'] = 'text/html; charset=utf-8'
+    return response
 
 @inventory_bp.route('/inventory/outlet/<int:id>')
 @login_required

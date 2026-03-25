@@ -140,7 +140,9 @@ def download_pdf():
         generated_by=current_user.full_name,
     )
 
-    return html_content
+    response = make_response(html_content)
+    response.headers['Content-Type'] = 'text/html; charset=utf-8'
+    return response
 
 @transfers_bp.route('/transfers/create', methods=['GET', 'POST'])
 @login_required

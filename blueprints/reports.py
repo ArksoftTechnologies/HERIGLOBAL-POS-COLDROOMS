@@ -1,5 +1,5 @@
 from datetime import datetime, timedelta
-from flask import Blueprint, render_template, request, jsonify, current_app
+from flask import Blueprint, render_template, request, jsonify, current_app, make_response
 from flask_login import login_required, current_user
 from sqlalchemy import func, case, extract, desc, and_
 from models import db, User, Outlet, Product, Category, Sale, SaleItem, PaymentMode, Inventory, InventoryAdjustment, StockTransfer, Return, ReturnItem, Customer
@@ -124,6 +124,25 @@ def sales_summary():
     outlets = Outlet.query.all() if current_user.role in ['super_admin', 'general_manager', 'accountant'] else []
     sales_reps = User.query.filter_by(role='sales_rep').all()
     
+    if request.args.get('format') == 'pdf':
+        response = make_response(render_template('reports/pdf/sales_summary.html',
+                         summary=summary,
+                         payment_breakdown=payment_breakdown,
+                         outlet_breakdown=outlet_breakdown,
+                         top_products=top_products,
+                         outlets=outlets,
+                         sales_reps=sales_reps,
+                         date_from=date_from,
+                         date_to=date_to,
+                         selected_outlet=outlet_id,
+                         selected_rep=sales_rep_id,
+                         app_name=current_app.config.get('APP_NAME', 'Point of Sale'),
+                         company_name=current_app.config.get('COMPANY_NAME', 'POS System'),
+                         generated_by=current_user.full_name,
+                         generated_at=datetime.now()))
+        response.headers['Content-Type'] = 'text/html'
+        return response
+
     return render_template('reports/sales_summary.html',
                          summary=summary,
                          payment_breakdown=payment_breakdown,
@@ -167,6 +186,22 @@ def sales_detailed():
     outlets = Outlet.query.all() if current_user.role in ['super_admin', 'general_manager', 'accountant'] else []
     sales_reps = User.query.filter_by(role='sales_rep').all()
     
+    if request.args.get('format') == 'pdf':
+        response = make_response(render_template('reports/pdf/sales_detailed.html',
+                         sales=sales_pagination, # Warning: might need to bypass pagination for full PDF export later
+                         outlets=outlets,
+                         sales_reps=sales_reps,
+                         date_from=date_from,
+                         date_to=date_to,
+                         selected_outlet=outlet_id,
+                         selected_rep=sales_rep_id,
+                         app_name=current_app.config.get('APP_NAME', 'Point of Sale'),
+                         company_name=current_app.config.get('COMPANY_NAME', 'POS System'),
+                         generated_by=current_user.full_name,
+                         generated_at=datetime.now()))
+        response.headers['Content-Type'] = 'text/html'
+        return response
+
     return render_template('reports/sales_detailed.html',
                          sales=sales_pagination,
                          outlets=outlets,
@@ -291,6 +326,21 @@ def inventory_balance_sheet():
 
     outlets = Outlet.query.all() if current_user.role in ['super_admin', 'general_manager', 'accountant'] else []
 
+    if request.args.get('format') == 'pdf':
+        response = make_response(render_template('reports/pdf/inventory_balance_sheet.html',
+                         balance_sheet=balance_sheet,
+                         pagination=products_pagination,
+                         outlets=outlets,
+                         selected_outlet=outlet_id,
+                         date_from=date_from,
+                         date_to=date_to,
+                         app_name=current_app.config.get('APP_NAME', 'Point of Sale'),
+                         company_name=current_app.config.get('COMPANY_NAME', 'POS System'),
+                         generated_by=current_user.full_name,
+                         generated_at=datetime.now()))
+        response.headers['Content-Type'] = 'text/html'
+        return response
+
     return render_template('reports/inventory_balance_sheet.html',
                          balance_sheet=balance_sheet,
                          pagination=products_pagination,
@@ -301,8 +351,8 @@ def inventory_balance_sheet():
 
 @reports_bp.route('/inventory/low-stock')
 @login_required
-@role_required(['super_admin', 'general_manager', 'outlet_admin'])
-def low_stock_alert():
+@role_required(['super_admin', 'general_manager', 'outlet_admin', 'accountant'])
+def inventory_low_stock():
     """Low Stock Alert Report"""
     outlet_id = request.args.get('outlet_id', type=int)
     
@@ -319,8 +369,20 @@ def low_stock_alert():
         
     low_stock_items = query.all()
     
-    outlets = Outlet.query.all() if current_user.role in ['super_admin', 'general_manager'] else []
+    outlets = Outlet.query.all() if current_user.role in ['super_admin', 'general_manager', 'accountant'] else []
     
+    if request.args.get('format') == 'pdf':
+        response = make_response(render_template('reports/pdf/inventory_low_stock.html',
+                         items=low_stock_items,
+                         outlets=outlets,
+                         selected_outlet=outlet_id,
+                         app_name=current_app.config.get('APP_NAME', 'Point of Sale'),
+                         company_name=current_app.config.get('COMPANY_NAME', 'POS System'),
+                         generated_by=current_user.full_name,
+                         generated_at=datetime.now()))
+        response.headers['Content-Type'] = 'text/html'
+        return response
+        
     return render_template('reports/inventory_low_stock.html',
                          items=low_stock_items,
                          outlets=outlets,
@@ -328,33 +390,304 @@ def low_stock_alert():
 
 @reports_bp.route('/sales/credit-vs-cash')
 @login_required
-@role_required(['super_admin', 'general_manager', 'outlet_admin', 'accountant'])
-def credit_vs_cash():
-    """Credit vs Cash Analysis"""
+@role_required(['super_admin', 'general_manager', 'accountant'])
+def sales_credit_vs_cash():
+    """Credit vs Cash Sales Comparison Report"""
     date_from, date_to = get_date_range()
+    
+    # Unified query: Single Payments + Split Payments
+    from sqlalchemy import union_all
+    
+    # Subquery 1: Single payments (directly on Sale)
+    single_payments = db.session.query(
+        Sale.id.label('sale_id'),
+        Sale.payment_mode_id.label('pm_id'),
+        Sale.total_amount.label('amt'),
+        Sale.sale_date.label('dt'),
+        Sale.status.label('st')
+    ).filter(Sale.is_split_payment == False)
+    
+    # Subquery 2: Split payments (from SalePayment)
+    split_payments = db.session.query(
+        Sale.id.label('sale_id'),
+        SalePayment.payment_mode_id.label('pm_id'),
+        SalePayment.amount.label('amt'),
+        Sale.sale_date.label('dt'),
+        Sale.status.label('st')
+    ).join(SalePayment, Sale.id == SalePayment.sale_id)
+    
+    unified = union_all(single_payments, split_payments).alias('unified')
     
     payment_stats = db.session.query(
         PaymentMode.name,
         PaymentMode.is_credit,
-        func.count(Sale.id).label('count'),
-        func.sum(Sale.total_amount).label('total')
-    ).join(Sale).filter(
-        Sale.status == 'completed',
-        func.date(Sale.sale_date) >= date_from,
-        func.date(Sale.sale_date) <= date_to
+        func.count(func.distinct(unified.c.sale_id)).label('count'),
+        func.sum(unified.c.amt).label('total')
+    ).join(unified, PaymentMode.id == unified.c.pm_id).filter(
+        unified.c.st == 'completed',
+        func.date(unified.c.dt) >= date_from,
+        func.date(unified.c.dt) <= date_to
     ).group_by(PaymentMode.id).all()
     
+    if request.args.get('format') == 'pdf':
+        response = make_response(render_template('reports/pdf/sales_credit_vs_cash.html',
+                         stats=payment_stats,
+                         date_from=date_from,
+                         date_to=date_to,
+                         app_name=current_app.config.get('APP_NAME', 'Point of Sale'),
+                         company_name=current_app.config.get('COMPANY_NAME', 'POS System'),
+                         generated_by=current_user.full_name,
+                         generated_at=datetime.now()))
+        response.headers['Content-Type'] = 'text/html'
+        return response
+
     return render_template('reports/sales_credit_vs_cash.html',
                          stats=payment_stats,
                          date_from=date_from,
                          date_to=date_to)
 
 # ─────────────────────────────────────────────────────────────────────────────
+# NEW REPORT 0: Central Warehouse Receive (Adjustments)
+# ─────────────────────────────────────────────────────────────────────────────
+@reports_bp.route('/warehouse/receive')
+@login_required
+@role_required(['super_admin', 'general_manager', 'accountant'])
+def warehouse_receive():
+    """Report: Stock received into central warehouse via adjustments."""
+    date_from, date_to = get_date_range()
+    
+    warehouse = Outlet.query.filter_by(is_warehouse=True).first()
+    if not warehouse:
+        warehouse = Outlet.query.get(1)
+
+    # Query InventoryAdjustment where quantity_change > 0 and outlet_id == warehouse.id
+    # Exclude transfers and sales (Request: only adjustments, not transfers)
+    exclude_types = ['transfer_in', 'transfer_out', 'transfer_cancelled', 'sale']
+    
+    query = db.session.query(
+        Product.name.label('product_name'),
+        Product.sku,
+        Product.unit,
+        InventoryAdjustment.quantity_change.label('quantity'),
+        InventoryAdjustment.reference_number,
+        InventoryAdjustment.adjusted_at.label('date'),
+        InventoryAdjustment.adjustment_type.label('source_type')
+    ).join(Product, InventoryAdjustment.product_id == Product.id)\
+     .filter(
+        InventoryAdjustment.outlet_id == warehouse.id,
+        InventoryAdjustment.quantity_change > 0,
+        InventoryAdjustment.adjustment_type.notin_(exclude_types),
+        func.date(InventoryAdjustment.adjusted_at) >= date_from,
+        func.date(InventoryAdjustment.adjusted_at) <= date_to
+    )
+
+    receive_rows = query.order_by(InventoryAdjustment.adjusted_at.desc()).all()
+
+    product_totals = {}
+    for row in receive_rows:
+        key = (row.product_name, row.sku, row.unit)
+        product_totals[key] = product_totals.get(key, 0) + row.quantity
+
+    grand_total_qty = sum(r.quantity for r in receive_rows)
+    grand_total_lines = len(receive_rows)
+
+    if request.args.get('format') == 'pdf':
+        response = make_response(render_template('reports/pdf/warehouse_receive.html',
+                           rows=receive_rows,
+                           product_totals=product_totals,
+                           grand_total_qty=grand_total_qty,
+                           grand_total_lines=grand_total_lines,
+                           warehouse=warehouse,
+                           date_from=date_from,
+                           date_to=date_to,
+                           app_name=current_app.config.get('APP_NAME', 'Point of Sale'),
+                           company_name=current_app.config.get('COMPANY_NAME', 'POS System'),
+                           generated_by=current_user.full_name,
+                           generated_at=datetime.now()))
+        response.headers['Content-Type'] = 'text/html'
+        return response
+
+    return render_template('reports/warehouse_receive.html',
+                         rows=receive_rows,
+                         product_totals=product_totals,
+                         grand_total_qty=grand_total_qty,
+                         grand_total_lines=grand_total_lines,
+                         warehouse=warehouse,
+                         date_from=date_from,
+                         date_to=date_to)
+
+
+@reports_bp.route('/inventory/trial-balance')
+@login_required
+@role_required(['super_admin', 'general_manager', 'accountant'])
+def inventory_trial_balance():
+    """Report: Reconciliation of Receives vs Sales vs Current Stock."""
+    date_from, date_to = get_date_range()
+    outlet_id = request.args.get('outlet_id', type=int)
+    
+    # Filter by outlet if provided, otherwise default/all depending on business logic
+    # For a trial balance, we usually show by outlet
+    if not outlet_id:
+        outlet = Outlet.query.filter_by(is_warehouse=True).first() or Outlet.query.get(1)
+        outlet_id = outlet.id
+    else:
+        outlet = Outlet.query.get_or_404(outlet_id)
+
+    # 1. Opening Balance (Total change before date_from)
+    opening_subquery = db.session.query(
+        InventoryAdjustment.product_id,
+        func.sum(InventoryAdjustment.quantity_change).label('opening_bal')
+    ).filter(
+        InventoryAdjustment.outlet_id == outlet_id,
+        func.date(InventoryAdjustment.adjusted_at) < date_from
+    ).group_by(InventoryAdjustment.product_id).subquery()
+
+    # 2. Total Inward in period (All positive changes)
+    received_subquery = db.session.query(
+        InventoryAdjustment.product_id,
+        func.sum(InventoryAdjustment.quantity_change).label('total_received')
+    ).filter(
+        InventoryAdjustment.outlet_id == outlet_id,
+        InventoryAdjustment.quantity_change > 0,
+        func.date(InventoryAdjustment.adjusted_at) >= date_from,
+        func.date(InventoryAdjustment.adjusted_at) <= date_to
+    ).group_by(InventoryAdjustment.product_id).subquery()
+
+    # 3. Total Sold in period (Sales adjustments)
+    sold_subquery = db.session.query(
+        InventoryAdjustment.product_id,
+        func.sum(func.abs(InventoryAdjustment.quantity_change)).label('total_sold')
+    ).filter(
+        InventoryAdjustment.outlet_id == outlet_id,
+        InventoryAdjustment.adjustment_type == 'sale',
+        func.date(InventoryAdjustment.adjusted_at) >= date_from,
+        func.date(InventoryAdjustment.adjusted_at) <= date_to
+    ).group_by(InventoryAdjustment.product_id).subquery()
+
+    # 4. Total Transferred Out in period
+    transfers_out_subquery = db.session.query(
+        InventoryAdjustment.product_id,
+        func.sum(func.abs(InventoryAdjustment.quantity_change)).label('total_transferred_out')
+    ).filter(
+        InventoryAdjustment.outlet_id == outlet_id,
+        InventoryAdjustment.adjustment_type == 'transfer_out',
+        func.date(InventoryAdjustment.adjusted_at) >= date_from,
+        func.date(InventoryAdjustment.adjusted_at) <= date_to
+    ).group_by(InventoryAdjustment.product_id).subquery()
+
+    # 5. Other Outward (Damages, etc.) - Net of other negative changes
+    other_out_subquery = db.session.query(
+        InventoryAdjustment.product_id,
+        func.sum(func.abs(InventoryAdjustment.quantity_change)).label('total_other_out')
+    ).filter(
+        InventoryAdjustment.outlet_id == outlet_id,
+        InventoryAdjustment.quantity_change < 0,
+        InventoryAdjustment.adjustment_type.notin_(['sale', 'transfer_out']),
+        func.date(InventoryAdjustment.adjusted_at) >= date_from,
+        func.date(InventoryAdjustment.adjusted_at) <= date_to
+    ).group_by(InventoryAdjustment.product_id).subquery()
+
+    # 6. Sum of changes AFTER the period (to reconcile with current stock)
+    closing_adj_subquery = db.session.query(
+        InventoryAdjustment.product_id,
+        func.sum(InventoryAdjustment.quantity_change).label('future_change')
+    ).filter(
+        InventoryAdjustment.outlet_id == outlet_id,
+        func.date(InventoryAdjustment.adjusted_at) > date_to
+    ).group_by(InventoryAdjustment.product_id).subquery()
+
+    # 7. Main Query: Product + Inventory + All Subqueries
+    results = db.session.query(
+        Product.id,
+        Product.name,
+        Product.sku,
+        Inventory.quantity.label('current_stock'),
+        func.coalesce(opening_subquery.c.opening_bal, 0).label('opening'),
+        func.coalesce(received_subquery.c.total_received, 0).label('received'),
+        func.coalesce(sold_subquery.c.total_sold, 0).label('sold'),
+        func.coalesce(transfers_out_subquery.c.total_transferred_out, 0).label('transferred_out'),
+        func.coalesce(other_out_subquery.c.total_other_out, 0).label('other_out'),
+        func.coalesce(closing_adj_subquery.c.future_change, 0).label('future_change')
+    ).join(Inventory, Product.id == Inventory.product_id)\
+     .filter(Inventory.outlet_id == outlet_id)\
+     .outerjoin(opening_subquery, Product.id == opening_subquery.c.product_id)\
+     .outerjoin(received_subquery, Product.id == received_subquery.c.product_id)\
+     .outerjoin(sold_subquery, Product.id == sold_subquery.c.product_id)\
+     .outerjoin(transfers_out_subquery, Product.id == transfers_out_subquery.c.product_id)\
+     .outerjoin(other_out_subquery, Product.id == other_out_subquery.c.product_id)\
+     .outerjoin(closing_adj_subquery, Product.id == closing_adj_subquery.c.product_id)\
+     .order_by(Product.name.asc()).all()
+
+    # Format for template
+    report_data = []
+    for r in results:
+        # Simple math for the main table
+        calc_balance = r.received - r.sold
+        # Correct math for auditing
+        system_expected = r.opening + r.received - r.sold - r.transferred_out - r.other_out
+        is_balanced = (calc_balance == r.current_stock)
+        
+        # Reasons for imbalance check
+        reasons = []
+        if r.opening != 0:
+            reasons.append(f"Opening stock of {r.opening} existed before {date_from}")
+        if r.transferred_out != 0:
+            reasons.append(f"Transferred out {r.transferred_out} units in this period")
+        if r.other_out != 0:
+            reasons.append(f"Other adjustments (damages/manual) reduced stock by {r.other_out}")
+        if r.future_change != 0:
+            reasons.append(f"Stock moved by {r.future_change} after {date_to}")
+            
+        report_data.append({
+            'id': r.id,
+            'name': r.name,
+            'sku': r.sku,
+            'opening': r.opening,
+            'received': r.received,
+            'sold': r.sold,
+            'transferred_out': r.transferred_out,
+            'other_out': r.other_out,
+            'calc_balance': calc_balance,
+            'system_expected': system_expected,
+            'actual_stock': r.current_stock,
+            'future_change': r.future_change,
+            'is_balanced': is_balanced,
+            'reasons': reasons
+        })
+
+    all_outlets = Outlet.query.filter_by(is_active=True).all()
+
+    if request.args.get('format') == 'pdf':
+        response = make_response(render_template('reports/pdf/inventory_trial_balance.html',
+                           data=report_data,
+                           outlet=outlet,
+                           date_from=date_from,
+                           date_to=date_to,
+                           app_name=current_app.config.get('APP_NAME', 'Point of Sale'),
+                           company_name=current_app.config.get('COMPANY_NAME', 'POS System'),
+                           generated_by=current_user.full_name,
+                           generated_at=datetime.now()))
+        response.headers['Content-Type'] = 'text/html'
+        return response
+
+    return render_template('reports/inventory_trial_balance.html',
+                         data=report_data,
+                         outlet=outlet,
+                         all_outlets=all_outlets,
+                         date_from=date_from,
+                         date_to=date_to,
+                         app_name=current_app.config.get('APP_NAME', 'Point of Sale'),
+                         company_name=current_app.config.get('COMPANY_NAME', 'POS System'),
+                         generated_by=current_user.full_name,
+                         generated_at=datetime.now())
+
+
+# ─────────────────────────────────────────────────────────────────────────────
 # NEW REPORT 1: Stock Received (Per Outlet, Date Range)
 # ─────────────────────────────────────────────────────────────────────────────
 @reports_bp.route('/stock/receive')
 @login_required
-@role_required(['super_admin', 'general_manager', 'outlet_admin'])
+@role_required(['super_admin', 'general_manager', 'outlet_admin', 'accountant'])
 def stock_receive():
     """Report: All stock received into an outlet within a date range."""
     date_from, date_to = get_date_range()
@@ -397,9 +730,27 @@ def stock_receive():
 
     # Outlet dropdown (platform-wide roles only)
     outlets = Outlet.query.filter_by(is_active=True).order_by(Outlet.name).all() \
-        if current_user.role in ['super_admin', 'general_manager'] else []
+        if current_user.role in ['super_admin', 'general_manager', 'accountant'] else []
 
     selected_outlet = Outlet.query.get(outlet_id) if outlet_id else None
+
+    if request.args.get('format') == 'pdf':
+        response = make_response(render_template('reports/pdf/stock_receive.html',
+                           rows=receive_rows,
+                           product_totals=product_totals,
+                           grand_total_qty=grand_total_qty,
+                           grand_total_lines=grand_total_lines,
+                           outlets=outlets,
+                           selected_outlet=selected_outlet,
+                           outlet_id=outlet_id,
+                           date_from=date_from,
+                           date_to=date_to,
+                           app_name=current_app.config.get('APP_NAME', 'Point of Sale'),
+                           company_name=current_app.config.get('COMPANY_NAME', 'POS System'),
+                           generated_by=current_user.full_name,
+                           generated_at=datetime.now()))
+        response.headers['Content-Type'] = 'text/html'
+        return response
 
     return render_template('reports/stock_receive.html',
                            rows=receive_rows,
@@ -418,7 +769,7 @@ def stock_receive():
 # ─────────────────────────────────────────────────────────────────────────────
 @reports_bp.route('/products/sold')
 @login_required
-@role_required(['super_admin', 'general_manager', 'outlet_admin'])
+@role_required(['super_admin', 'general_manager', 'outlet_admin', 'accountant'])
 def products_sold():
     """Report: Summary of products sold within a date range (per outlet)."""
     date_from, date_to = get_date_range()
@@ -455,9 +806,27 @@ def products_sold():
     grand_tx = sum(r.num_transactions for r in rows)
 
     outlets = Outlet.query.filter_by(is_active=True).order_by(Outlet.name).all() \
-        if current_user.role in ['super_admin', 'general_manager'] else []
+        if current_user.role in ['super_admin', 'general_manager', 'accountant'] else []
 
     selected_outlet = Outlet.query.get(outlet_id) if outlet_id else None
+
+    if request.args.get('format') == 'pdf':
+        response = make_response(render_template('reports/pdf/products_sold.html',
+                           rows=rows,
+                           grand_qty=grand_qty,
+                           grand_revenue=grand_revenue,
+                           grand_tx=grand_tx,
+                           outlets=outlets,
+                           selected_outlet=selected_outlet,
+                           outlet_id=outlet_id,
+                           date_from=date_from,
+                           date_to=date_to,
+                           app_name=current_app.config.get('APP_NAME', 'Point of Sale'),
+                           company_name=current_app.config.get('COMPANY_NAME', 'POS System'),
+                           generated_by=current_user.full_name,
+                           generated_at=datetime.now()))
+        response.headers['Content-Type'] = 'text/html'
+        return response
 
     return render_template('reports/products_sold.html',
                            rows=rows,
@@ -476,7 +845,7 @@ def products_sold():
 # ─────────────────────────────────────────────────────────────────────────────
 @reports_bp.route('/sales/by-outlet')
 @login_required
-@role_required(['super_admin', 'general_manager', 'outlet_admin'])
+@role_required(['super_admin', 'general_manager', 'outlet_admin', 'accountant'])
 def sales_by_outlet():
     """Report: Sales aggregated per outlet over a date range, with daily breakdown."""
     date_from, date_to = get_date_range()
@@ -529,9 +898,27 @@ def sales_by_outlet():
     grand_transactions = sum(r.transactions for r in outlet_totals)
 
     outlets = Outlet.query.filter_by(is_active=True).order_by(Outlet.name).all() \
-        if current_user.role in ['super_admin', 'general_manager'] else []
+        if current_user.role in ['super_admin', 'general_manager', 'accountant'] else []
 
     selected_outlet = Outlet.query.get(outlet_id) if outlet_id else None
+
+    if request.args.get('format') == 'pdf':
+        response = make_response(render_template('reports/pdf/sales_by_outlet.html',
+                           outlet_totals=outlet_totals,
+                           daily_rows=daily_rows,
+                           grand_revenue=grand_revenue,
+                           grand_transactions=grand_transactions,
+                           outlets=outlets,
+                           selected_outlet=selected_outlet,
+                           outlet_id=outlet_id,
+                           date_from=date_from,
+                           date_to=date_to,
+                           app_name=current_app.config.get('APP_NAME', 'Point of Sale'),
+                           company_name=current_app.config.get('COMPANY_NAME', 'POS System'),
+                           generated_by=current_user.full_name,
+                           generated_at=datetime.now()))
+        response.headers['Content-Type'] = 'text/html'
+        return response
 
     return render_template('reports/sales_by_outlet.html',
                            outlet_totals=outlet_totals,

@@ -31,7 +31,7 @@
                 <p class="text-sm text-gray-500">Full list of transactions with filtering and pagination.</p>
             </a>
 
-            <a href="{{ url_for('reports.credit_vs_cash') }}"
+            <a href="{{ url_for('reports.sales_credit_vs_cash') }}"
                 class="group p-4 border border-gray-200 rounded-lg hover:border-primary hover:bg-indigo-50 transition-all">
                 <div class="flex items-center justify-between mb-2">
                     <h3 class="font-medium text-gray-900 group-hover:text-primary">Credit vs Cash</h3>
@@ -49,6 +49,15 @@
             Inventory Reports
         </h2>
         <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            <a href="{{ url_for('reports.warehouse_receive') }}"
+                class="group p-4 border border-gray-200 rounded-lg hover:border-primary hover:bg-indigo-50 transition-all">
+                <div class="flex items-center justify-between mb-2">
+                    <h3 class="font-medium text-gray-900 group-hover:text-primary">Central Warehouse Receives</h3>
+                    <i data-lucide="building-2" class="w-5 h-5 text-gray-400 group-hover:text-primary"></i>
+                </div>
+                <p class="text-sm text-gray-500">Stock received directly into the central warehouse via manual adjustments.</p>
+            </a>
+            
             <a href="{{ url_for('reports.inventory_balance_sheet') }}"
                 class="group p-4 border border-gray-200 rounded-lg hover:border-primary hover:bg-indigo-50 transition-all">
                 <div class="flex items-center justify-between mb-2">
@@ -58,13 +67,22 @@
                 <p class="text-sm text-gray-500">Reconciliation of opening stock, movement, and closing stock.</p>
             </a>
 
-            <a href="{{ url_for('reports.low_stock_alert') }}"
+            <a href="{{ url_for('reports.inventory_low_stock') }}"
                 class="group p-4 border border-gray-200 rounded-lg hover:border-primary hover:bg-indigo-50 transition-all">
                 <div class="flex items-center justify-between mb-2">
                     <h3 class="font-medium text-gray-900 group-hover:text-primary">Low Stock Alerts</h3>
                     <i data-lucide="alert-triangle" class="w-5 h-5 text-gray-400 group-hover:text-primary"></i>
                 </div>
                 <p class="text-sm text-gray-500">Items falling below reorder levels requiring attention.</p>
+            </a>
+
+            <a href="{{ url_for('reports.inventory_trial_balance') }}"
+                class="group p-4 border border-gray-200 rounded-lg hover:border-primary hover:bg-indigo-50 transition-all">
+                <div class="flex items-center justify-between mb-2">
+                    <h3 class="font-medium text-gray-900 group-hover:text-primary">Stock Trial Balance</h3>
+                    <i data-lucide="check-square" class="w-5 h-5 text-gray-400 group-hover:text-primary"></i>
+                </div>
+                <p class="text-sm text-gray-500">Compare Received vs Sold against current inventory for auditing.</p>
             </a>
 
             <a href="#"

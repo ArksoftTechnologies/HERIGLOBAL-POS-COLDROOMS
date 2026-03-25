@@ -108,11 +108,22 @@ def create_app(config_name='development'):
     def index():
         return redirect(url_for('auth.login'))
         
-    # Static file caching
+    # Refresh session timeout on every request
+    @app.before_request
+    def refresh_session():
+        from flask import session
+        session.permanent = True
+        session.modified = True
+
+    # Static file caching and no-cache for other routes to prevent BFCache after logout
     @app.after_request
     def add_header(response):
         if request.path.startswith('/static/'):
             response.cache_control.max_age = app.config.get('SEND_FILE_MAX_AGE_DEFAULT', 31536000)
+        else:
+            response.headers['Cache-Control'] = 'no-store, no-cache, must-revalidate, max-age=0'
+            response.headers['Pragma'] = 'no-cache'
+            response.headers['Expires'] = '0'
         return response
     
     return app

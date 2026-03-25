@@ -3,7 +3,7 @@ PDF Generation Service for Heriglobal POS
 Generates professional PDFs for receipts, reports, and documents using frontend rendering.
 """
 
-from flask import render_template
+from flask import render_template, current_app
 from datetime import datetime
 
 class PDFGenerator:
@@ -22,6 +22,7 @@ class PDFGenerator:
             'payment_mode': sale.payment_mode,
             'generated_at': datetime.now(),
             'company_name': current_app.config.get('APP_NAME', 'Heriglobal POS').upper(),
+            'app_name': current_app.config.get('APP_NAME', 'Heriglobal POS'),
             'company_tagline': 'Your Trusted POS Solution'
         }
         
@@ -37,7 +38,8 @@ class PDFGenerator:
             'outlet': outlet,
             'received_by': repayment.receiver,
             'generated_at': datetime.now(),
-            'company_name': current_app.config.get('APP_NAME', 'Heriglobal POS').upper()
+            'company_name': current_app.config.get('APP_NAME', 'Heriglobal POS').upper(),
+            'app_name': current_app.config.get('APP_NAME', 'Heriglobal POS')
         }
         
         return render_template('pdf/repayment_receipt.html', **data)
@@ -53,7 +55,8 @@ class PDFGenerator:
             'processed_by': return_record.processed_by_user,
             'original_sale': return_record.sale,
             'generated_at': datetime.now(),
-            'company_name': current_app.config.get('APP_NAME', 'Heriglobal POS').upper()
+            'company_name': current_app.config.get('APP_NAME', 'Heriglobal POS').upper(),
+            'app_name': current_app.config.get('APP_NAME', 'Heriglobal POS')
         }
         
         return render_template('pdf/return_receipt.html', **data)
@@ -67,7 +70,8 @@ class PDFGenerator:
             'recorded_by': expense.recorded_by_user,
             'category': expense.category,
             'generated_at': datetime.now(),
-            'company_name': current_app.config.get('APP_NAME', 'Heriglobal POS').upper()
+            'company_name': current_app.config.get('APP_NAME', 'Heriglobal POS').upper(),
+            'app_name': current_app.config.get('APP_NAME', 'Heriglobal POS')
         }
         
         return render_template('pdf/expense_record.html', **data)
@@ -80,7 +84,8 @@ class PDFGenerator:
             'outlet': outlet,
             'sales_rep': collection.sales_rep,
             'generated_at': datetime.now(),
-            'company_name': current_app.config.get('APP_NAME', 'Heriglobal POS').upper()
+            'company_name': current_app.config.get('APP_NAME', 'Heriglobal POS').upper(),
+            'app_name': current_app.config.get('APP_NAME', 'Heriglobal POS')
         }
         
         return render_template('pdf/collection_receipt.html', **data)
@@ -93,7 +98,8 @@ class PDFGenerator:
             'outlet': outlet,
             'sales_rep': remittance.sales_rep,
             'generated_at': datetime.now(),
-            'company_name': current_app.config.get('APP_NAME', 'Heriglobal POS').upper()
+            'company_name': current_app.config.get('APP_NAME', 'Heriglobal POS').upper(),
+            'app_name': current_app.config.get('APP_NAME', 'Heriglobal POS')
         }
         
         return render_template('pdf/remittance_record.html', **data)
@@ -107,9 +113,48 @@ class PDFGenerator:
             'generated_by': generated_by,
             'generated_at': datetime.now(),
             'company_name': current_app.config.get('APP_NAME', 'Heriglobal POS').upper(),
+            'app_name': current_app.config.get('APP_NAME', 'Heriglobal POS'),
             'company_tagline': 'Stock Transfer History Report',
             'total_qty': sum(t.quantity for t in transfers),
             'total_count': len(transfers),
         }
         return render_template('pdf/transfer_history.html', **data)
+
+    @staticmethod
+    def generate_inventory_outlets_pdf(products, outlets, stock_map, all_outlets, selected_outlet, generated_by):
+        """Generate a formatted HTML page for inventory-across-outlets PDF report."""
+        # Pre-compute row totals and outlet totals for the template
+        # row_totals: {product_id: total_qty_across_displayed_outlets}
+        row_totals = {}
+        for product in products:
+            row_totals[product.id] = sum(
+                stock_map.get((product.id, outlet.id), 0) for outlet in outlets
+            )
+
+        # outlet_totals: {outlet_id: total_qty_across_all_products}
+        outlet_totals = {}
+        for outlet in outlets:
+            outlet_totals[outlet.id] = sum(
+                stock_map.get((product.id, outlet.id), 0) for product in products
+            )
+
+        grand_total = sum(row_totals.values())
+        total_products = len([p for p in products if row_totals.get(p.id, 0) > 0])
+
+        data = {
+            'products': products,
+            'outlets': outlets,
+            'all_outlets': all_outlets,
+            'selected_outlet': selected_outlet,
+            'stock_map': stock_map,
+            'row_totals': row_totals,
+            'outlet_totals': outlet_totals,
+            'grand_total': grand_total,
+            'total_products': total_products,
+            'generated_by': generated_by,
+            'generated_at': datetime.now(),
+            'company_name': current_app.config.get('APP_NAME', 'Heriglobal POS').upper(),
+            'app_name': current_app.config.get('APP_NAME', 'Heriglobal POS'),
+        }
+        return render_template('pdf/inventory_outlets.html', **data)
 

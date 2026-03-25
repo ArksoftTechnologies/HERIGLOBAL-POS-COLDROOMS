@@ -60,6 +60,11 @@
                     class="bg-green-600 text-white px-3 py-2 rounded-lg hover:bg-green-700 text-sm flex items-center">
                     <i data-lucide="download" class="w-4 h-4 mr-1"></i> CSV
                 </button>
+                <a href="{{ url_for('reports.sales_detailed', format='pdf', date_from=date_from, date_to=date_to, outlet_id=selected_outlet, sales_rep_id=selected_rep) }}"
+                   target="_blank"
+                   class="px-4 py-2 bg-white border border-gray-300 text-gray-700 text-sm font-medium rounded-lg hover:bg-gray-50 transition-colors inline-flex items-center">
+                    <i data-lucide="printer" class="w-4 h-4 mr-2"></i>Print PDF
+                </a>
             </div>
         </form>
     </div>
@@ -92,25 +97,25 @@
                     {% for sale in sales.items %}
                     <tr class="hover:bg-gray-50">
                         <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-primary">
-                            {{ sale.invoice_number }}
+                            {{ sale.sale_number }}
                         </td>
                         <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                             {{ sale.sale_date.strftime('%b %d, %Y') }}<br>
                             <span class="text-xs text-gray-400">{{ sale.created_at.strftime('%I:%M %p') }}</span>
                         </td>
                         <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                            {{ sale.customer_name or 'Walk-in' }}
+                            {{ (sale.customer.first_name ~ ' ' ~ sale.customer.last_name) if sale.customer else 'Walk-in' }}
                         </td>
                         <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                             {{ sale.sales_rep.full_name }}
                         </td>
                         <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 text-center">
-                            {{ sale.sale_items|length }}
+                            {{ sale.items|length }}
                         </td>
                         <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                             <span
                                 class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-blue-100 text-blue-800">
-                                {{ sale.payment_mode.name if sale.payment_mode else 'Unknown' }}
+                                {{ sale.payment_mode.name if sale.payment_mode else ('Split' if sale.is_split_payment else 'Unknown') }}
                             </span>
                         </td>
                         <td class="px-6 py-4 whitespace-nowrap text-sm font-bold text-gray-900 text-right">
@@ -142,7 +147,7 @@
                     <div>
                         <p class="text-sm text-gray-700">
                             Showing <span class="font-medium">{{ (sales.page - 1) * sales.per_page + 1 }}</span> to
-                            <span class="font-medium">{{ min(sales.page * sales.per_page, sales.total) }}</span> of
+                            <span class="font-medium">{{ [sales.page * sales.per_page, sales.total]|min }}</span> of
                             <span class="font-medium">{{ sales.total }}</span> results
                         </p>
                     </div>

@@ -15,9 +15,9 @@ def index():
     role = current_user.role
     
     if role == 'super_admin':
-        return redirect(url_for('dashboard.super_admin'))
+        return redirect(url_for('admin_dashboard.index'))
     elif role == 'general_manager':
-        return redirect(url_for('dashboard.general_manager'))
+        return redirect(url_for('admin_dashboard.index'))
     elif role == 'outlet_admin':
         return redirect(url_for('dashboard.outlet_admin'))
     elif role == 'sales_rep':
@@ -606,11 +606,19 @@ def accountant():
         Sale.sale_date >= thirty_days_ago
     ).first()
     
+    # Pending Sales
+    pending_sales = Sale.query.filter_by(status='pending').order_by(Sale.sale_date.desc()).limit(5).all()
+    
+    # Pending Expenses
+    pending_expenses = Expense.query.filter_by(status='pending').order_by(Expense.expense_date.desc()).limit(5).all()
+    
     return render_template(
         'dashboard/accountant.html',
         total_revenue=total_revenue,
         total_expenses=total_expenses,
         total_outstanding=total_outstanding,
         total_collections=total_collections,
-        total_remittances=total_remittances
+        total_remittances=total_remittances,
+        pending_sales=pending_sales,
+        pending_expenses=pending_expenses
     )
