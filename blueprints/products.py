@@ -97,7 +97,9 @@ def create():
         reorder_level = int(request.form.get('reorder_level', 10))
         unit = request.form.get('unit', 'piece')
         description = request.form.get('description')
-        initial_stock = int(request.form.get('initial_stock', 0))
+        has_slates = 'has_slates' in request.form
+        slates_per_unit = int(request.form.get('slates_per_unit', 1))
+        initial_stock = float(request.form.get('initial_stock', 0))
         
         # Validation
         if Product.query.filter_by(sku=sku).first():
@@ -112,6 +114,8 @@ def create():
             selling_price=selling_price,
             reorder_level=reorder_level,
             unit=unit,
+            has_slates=has_slates,
+            slates_per_unit=slates_per_unit,
             description=description,
             created_by=current_user.id
         )
@@ -399,6 +403,8 @@ def edit(id):
         product.reorder_level = int(request.form.get('reorder_level'))
         product.unit = request.form.get('unit')
         product.description = request.form.get('description')
+        product.has_slates = 'has_slates' in request.form
+        product.slates_per_unit = int(request.form.get('slates_per_unit', 1))
         
         db.session.commit()
         flash('Product updated successfully.', 'success')
@@ -422,7 +428,7 @@ def adjust_inventory(id):
     
     if request.method == 'POST':
         adjustment_type = request.form.get('adjustment_type')
-        quantity_change = int(request.form.get('quantity_change'))
+        quantity_change = float(request.form.get('quantity_change'))
         reason = request.form.get('reason')
         reference_number = request.form.get('reference_number')
         

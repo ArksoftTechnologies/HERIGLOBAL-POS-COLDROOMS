@@ -35,7 +35,7 @@ class ReturnItem(db.Model):
     return_id = db.Column(db.Integer, db.ForeignKey('returns.id'), nullable=False)
     sale_item_id = db.Column(db.Integer, db.ForeignKey('sale_items.id'), nullable=False)
     product_id = db.Column(db.Integer, db.ForeignKey('products.id'), nullable=False)
-    quantity_returned = db.Column(db.Integer, nullable=False)
+    quantity_returned = db.Column(db.Float, nullable=False)
     unit_price = db.Column(db.Numeric(10, 2), nullable=False)
     refund_amount = db.Column(db.Numeric(10, 2), nullable=False)
     condition = db.Column(db.String(20), nullable=False) # 'resellable', 'damaged'
@@ -65,7 +65,7 @@ class DamagedGoodsLedger(db.Model):
     return_item_id = db.Column(db.Integer, db.ForeignKey('return_items.id'), nullable=False)
     product_id = db.Column(db.Integer, db.ForeignKey('products.id'), nullable=False)
     outlet_id = db.Column(db.Integer, db.ForeignKey('outlets.id'), nullable=False)
-    quantity = db.Column(db.Integer, nullable=False)
+    quantity = db.Column(db.Float, nullable=False)
     recorded_at = db.Column(db.DateTime, default=datetime.utcnow)
     recorded_by = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
     disposal_status = db.Column(db.String(20), default='pending') # 'pending', 'disposed', 'salvaged'

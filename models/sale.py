@@ -41,8 +41,8 @@ class SaleItem(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     sale_id = db.Column(db.Integer, db.ForeignKey('sales.id'), nullable=False)
     product_id = db.Column(db.Integer, db.ForeignKey('products.id'), nullable=False)
-    quantity = db.Column(db.Integer, nullable=False)
-    quantity_returned = db.Column(db.Integer, default=0, nullable=False)
+    quantity = db.Column(db.Float, nullable=False)
+    quantity_returned = db.Column(db.Float, default=0.0, nullable=False)
     unit_price = db.Column(db.Numeric(10, 2), nullable=False)
     subtotal = db.Column(db.Numeric(10, 2), nullable=False)
 

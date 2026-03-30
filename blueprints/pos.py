@@ -172,8 +172,10 @@ def search_products():
                 'name': product.name,
                 'selling_price': float(default_price),
                 'unit_price': float(default_price),
-                'available_stock': inventory.quantity,
+                'available_stock': float(inventory.quantity),
                 'unit': product.unit or 'piece',
+                'has_slates': product.has_slates,
+                'slates_per_unit': product.slates_per_unit or 1,
                 'price_tiers': tiers,  # Tiers for POS to show price breaks
             })
     
@@ -188,7 +190,7 @@ def search_products():
 def add_to_cart():
     data = request.json
     product_id = data.get('product_id')
-    quantity = int(data.get('quantity', 1))
+    quantity = float(data.get('quantity', 1))
     outlet_id = data.get('outlet_id') or current_user.outlet_id or 1
     
     if quantity <= 0:
@@ -245,7 +247,7 @@ def add_to_cart():
 def update_cart():
     data = request.json
     product_id = data.get('product_id')
-    quantity = int(data.get('quantity'))
+    quantity = float(data.get('quantity'))
     outlet_id = data.get('outlet_id') or current_user.outlet_id or 1
     
     if quantity <= 0:

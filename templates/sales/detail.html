@@ -24,7 +24,7 @@
                     <i data-lucide="rotate-ccw" class="w-4 h-4 mr-2"></i> Process Return
                 </a>
                 {% endif %}
-                <button onclick="window.print()"
+                <button onclick="window.location.href=window.location.href + '?print=true'; window.print()"
                     class="inline-flex items-center px-4 py-2 border border-gray-300 shadow-sm text-sm font-medium rounded-lg text-gray-700 bg-white hover:bg-gray-50 focus:outline-none">
                     <i data-lucide="printer" class="w-4 h-4 mr-2"></i> Print Receipt
                 </button>
@@ -78,7 +78,9 @@
                             <p class="font-medium text-gray-900">{{ item.product.name }}</p>
                             <p class="text-xs text-gray-500">{{ item.product.sku }}</p>
                         </td>
-                        <td class="py-3 text-center">{{ item.quantity }}</td>
+                        <td class="py-3 text-center">
+                            {{ "{:g}".format(item.quantity) if item.quantity % 1 == 0 else "{:.3f}".format(item.quantity).rstrip('0').rstrip('.') }}
+                        </td>
                         <td class="py-3 text-right">₦{{ "{:,.2f}".format(item.unit_price) }}</td>
                         <td class="py-3 text-right font-semibold">₦{{ "{:,.2f}".format(item.subtotal) }}</td>
                     </tr>

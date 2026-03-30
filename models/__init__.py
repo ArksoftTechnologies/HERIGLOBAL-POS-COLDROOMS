@@ -13,6 +13,7 @@ from .return_model import Return, ReturnItem, ReturnPayment, DamagedGoodsLedger
 from .expense import ExpenseCategory, Expense
 from .remittance_model import CashCollection, Remittance
 from .pricing import ProductPriceTier, OutletProductPrice
+from .setting import SystemSetting
 
 __all__ = [
     'db',
@@ -40,4 +41,5 @@ __all__ = [
     'Remittance',
     'ProductPriceTier',
     'OutletProductPrice',
+    'SystemSetting',
 ]

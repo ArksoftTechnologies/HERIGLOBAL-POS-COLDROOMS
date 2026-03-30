@@ -75,7 +75,24 @@
                         </select>
                     </div>
 
-                    <div>
+                    <!-- Slate Settings -->
+                    <div class="mt-4 p-4 border border-indigo-100 bg-indigo-50 rounded-lg">
+                        <label class="flex items-center space-x-3 mb-2 cursor-pointer">
+                            <input type="checkbox" name="has_slates" id="has_slates"
+                                class="h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary">
+                            <span class="text-sm font-medium text-gray-900">This product has slates</span>
+                        </label>
+                        <div id="slates_input_container" class="hidden">
+                            <label for="slates_per_unit" class="block text-xs font-medium text-gray-500 mb-1">Number
+                                of slates per unit</label>
+                            <input type="number" name="slates_per_unit" id="slates_per_unit" min="2" value="2"
+                                class="block w-full rounded-lg border-gray-300 shadow-sm focus:border-primary focus:ring-primary sm:text-sm h-9">
+                            <p class="mt-1 text-[10px] text-gray-400">e.g. If 1 unit has 3 slates, selling 1 slate equals
+                                1/3 unit.</p>
+                        </div>
+                    </div>
+
+                    <div class="pt-2">
                         <label for="description"
                             class="block text-sm font-medium text-gray-700 mb-1">Description</label>
                         <textarea name="description" id="description" rows="3"
@@ -124,7 +141,7 @@
                         <div>
                             <label for="initial_stock" class="block text-sm font-medium text-gray-700 mb-1">Initial
                                 Stock (Warehouse)</label>
-                            <input type="number" name="initial_stock" id="initial_stock" min="0" value="0"
+                            <input type="number" name="initial_stock" id="initial_stock" min="0" value="0" step="0.001"
                                 class="block w-full rounded-lg border-gray-300 shadow-sm focus:border-primary focus:ring-primary sm:text-sm h-10">
                             <p class="mt-1 text-xs text-gray-500">This will be added to the Central Warehouse.</p>
                         </div>
@@ -190,6 +207,20 @@
 
         costInput.addEventListener('input', calculateMargin);
         sellingInput.addEventListener('input', calculateMargin);
+
+        // Slate toggle logic
+        const hasSlatesCheckbox = document.getElementById('has_slates');
+        const slatesContainer = document.getElementById('slates_input_container');
+
+        if (hasSlatesCheckbox && slatesContainer) {
+            hasSlatesCheckbox.addEventListener('change', function () {
+                if (this.checked) {
+                    slatesContainer.classList.remove('hidden');
+                } else {
+                    slatesContainer.classList.add('hidden');
+                }
+            });
+        }
     });
 </script>
 {% endblock %}

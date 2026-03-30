@@ -1,7 +1,7 @@
 from flask import Blueprint, render_template, request, jsonify, url_for, flash, redirect, current_app, send_file, abort
 from flask_login import current_user, login_required
 from app import db
-from models import Return, ReturnItem, ReturnPayment, DamagedGoodsLedger, Sale, SaleItem, Customer, PaymentMode, Inventory, InventoryAdjustment, Outlet
+from models import Return, ReturnItem, ReturnPayment, DamagedGoodsLedger, Sale, SaleItem, Customer, PaymentMode, Inventory, InventoryAdjustment, Outlet, SystemSetting
 from models.remittance_model import CashCollection
 from utils.decorators import role_required
 from datetime import datetime, date
@@ -44,9 +44,16 @@ def create():
             return redirect(url_for('sales.index'))
 
         # Sales rep can only return their OWN sales
-        if current_user.role == 'sales_rep' and sale.sales_rep_id != current_user.id:
-            flash("You can only return sales you personally made.", "error")
-            return redirect(url_for('sales.index'))
+        if current_user.role == 'sales_rep':
+            # Check if allowed by policy
+            policy = SystemSetting.query.filter_by(key='allow_sales_rep_returns').first()
+            if not policy or policy.value != 'true':
+                flash("Sales reps are not allowed to process returns. Please contact admin.", "error")
+                return redirect(url_for('sales.index'))
+
+            if sale.sales_rep_id != current_user.id:
+                flash("You can only return sales you personally made.", "error")
+                return redirect(url_for('sales.index'))
             
         if sale.status != 'completed':
             flash("Can only return from completed sales", "error")
@@ -96,9 +103,14 @@ def process_return():
             if sale.outlet_id != current_user.outlet_id:
                 return jsonify({'error': "Cannot process return for another outlet's sale"}), 403
 
-        # Sales rep can only return their OWN sales
-        if current_user.role == 'sales_rep' and sale.sales_rep_id != current_user.id:
-            return jsonify({'error': 'You can only return sales you personally made.'}), 403
+        # Sales rep check
+        if current_user.role == 'sales_rep':
+            policy = SystemSetting.query.filter_by(key='allow_sales_rep_returns').first()
+            if not policy or policy.value != 'true':
+                return jsonify({'error': 'Returns are currently disabled for sales representatives.'}), 403
+
+            if sale.sales_rep_id != current_user.id:
+                return jsonify({'error': 'You can only return sales you personally made.'}), 403
         
         # 4. Calculate total refund & validate items
         total_refund = 0
@@ -114,7 +126,7 @@ def process_return():
             if not sale_item or sale_item.sale_id != sale_id:
                 raise ValueError(f"Invalid sale item ID: {sale_item_id}")
             
-            qty_to_return = int(item_data.get('quantity_returned', 0))
+            qty_to_return = float(item_data.get('quantity_returned', 0))
             if qty_to_return <= 0:
                 continue
 

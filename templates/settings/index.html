@@ -171,6 +171,35 @@
                 </div>
             </div>
 
+            <!-- System Configuration -->
+            <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+                <div class="px-6 py-4 border-b border-gray-100 flex items-center">
+                    <div class="p-2 bg-blue-50 rounded-lg mr-3">
+                        <i data-lucide="cog" class="w-5 h-5 text-blue-600"></i>
+                    </div>
+                    <h3 class="font-semibold text-gray-800">System Configuration</h3>
+                </div>
+                <div class="p-6">
+                    <form action="{{ url_for('settings.update_policy') }}" method="POST" class="flex items-center justify-between">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                        <input type="hidden" name="key" value="allow_sales_rep_returns">
+                        <div>
+                            <p class="text-sm font-medium text-gray-800">Allow Sales Rep Returns</p>
+                            <p class="text-xs text-gray-400">If enabled, sales reps can process returns for their own sales.</p>
+                        </div>
+                        <div class="flex items-center">
+                            <input type="hidden" name="value" value="false">
+                            <label class="relative inline-flex items-center cursor-pointer">
+                                <input type="checkbox" name="value" value="true" class="sr-only peer" 
+                                       {% if allow_sales_rep_returns %}checked{% endif %}
+                                       onchange="this.form.submit()">
+                                <div class="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+                            </label>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
             <!-- Session & Security -->
             <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
                 <div class="px-6 py-4 border-b border-gray-100 flex items-center">

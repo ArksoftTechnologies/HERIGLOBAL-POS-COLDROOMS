@@ -9,7 +9,7 @@ class StockTransfer(db.Model):
     product_id = db.Column(db.Integer, db.ForeignKey('products.id'), nullable=False)
     from_outlet_id = db.Column(db.Integer, db.ForeignKey('outlets.id'), nullable=False)
     to_outlet_id = db.Column(db.Integer, db.ForeignKey('outlets.id'), nullable=False)
-    quantity = db.Column(db.Integer, nullable=False)
+    quantity = db.Column(db.Float, nullable=False)
     status = db.Column(db.String(20), nullable=False, default='pending') # pending, approved, in_transit, completed, rejected, cancelled
     
     # Request Details

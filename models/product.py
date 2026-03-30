@@ -28,6 +28,8 @@ class Product(db.Model):
     selling_price = db.Column(db.Numeric(10, 2), nullable=False)
     reorder_level = db.Column(db.Integer, default=10)
     unit = db.Column(db.String(20), default='piece')
+    has_slates = db.Column(db.Boolean, default=False)
+    slates_per_unit = db.Column(db.Integer, default=1)
     is_active = db.Column(db.Boolean, default=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)

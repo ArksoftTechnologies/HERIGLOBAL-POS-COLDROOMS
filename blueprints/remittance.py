@@ -318,23 +318,36 @@ def record_remittance():
 def collections_list():
     """List cash collections"""
     page = request.args.get('page', 1, type=int)
+    selected_date = request.args.get('date')
+    selected_outlet_id = request.args.get('outlet_id', type=int)
     
-    query = CashCollection.query.order_by(CashCollection.collection_date.desc())
+    query = CashCollection.query
     
-    # Role scoping (untouched)
+    # Apply date filter
+    if selected_date:
+        try:
+            # Validate format
+            datetime.strptime(selected_date, '%Y-%m-%d')
+            query = query.filter(CashCollection.collection_date == selected_date)
+        except ValueError:
+            selected_date = None
+            
+    # Role scoping
     if current_user.role == 'sales_rep':
         query = query.filter_by(sales_rep_id=current_user.id)
     elif current_user.role == 'outlet_admin':
+        # Outlet admin is always restricted to their outlet
         query = query.filter_by(outlet_id=current_user.outlet_id)
-    
-    # Outlet filter for super_admin / general_manager
-    outlets = []
-    selected_outlet_id = None
-    if current_user.role in ['super_admin', 'general_manager']:
-        outlets = Outlet.query.order_by(Outlet.name).all()
-        selected_outlet_id = request.args.get('outlet_id', type=int)
+    elif current_user.role in ['super_admin', 'general_manager', 'accountant']:
+        # Higher roles can filter by outlet
         if selected_outlet_id:
             query = query.filter_by(outlet_id=selected_outlet_id)
+            
+    query = query.order_by(CashCollection.collection_date.desc(), CashCollection.recorded_at.desc())
+    
+    outlets = []
+    if current_user.role in ['super_admin', 'general_manager', 'accountant']:
+        outlets = Outlet.query.order_by(Outlet.name).all()
         
     collections = query.paginate(page=page, per_page=20, error_out=False)
     
@@ -342,7 +355,8 @@ def collections_list():
         'remittance/collections.html',
         collections=collections,
         outlets=outlets,
-        selected_outlet_id=selected_outlet_id
+        selected_outlet_id=selected_outlet_id,
+        selected_date=selected_date
     )
 
 @remittance_bp.route('/remittances', methods=['GET'])
@@ -350,23 +364,34 @@ def collections_list():
 def remittances_list():
     """List remittances"""
     page = request.args.get('page', 1, type=int)
+    selected_date = request.args.get('date')
+    selected_outlet_id = request.args.get('outlet_id', type=int)
     
-    query = Remittance.query.order_by(Remittance.remittance_date.desc())
+    query = Remittance.query
     
-    # Role scoping (untouched)
+    # Apply date filter
+    if selected_date:
+        try:
+            # Validate format
+            datetime.strptime(selected_date, '%Y-%m-%d')
+            query = query.filter(Remittance.remittance_date == selected_date)
+        except ValueError:
+            selected_date = None
+            
+    # Role scoping
     if current_user.role == 'sales_rep':
         query = query.filter_by(sales_rep_id=current_user.id)
     elif current_user.role == 'outlet_admin':
         query = query.filter_by(outlet_id=current_user.outlet_id)
-    
-    # Outlet filter for super_admin / general_manager
-    outlets = []
-    selected_outlet_id = None
-    if current_user.role in ['super_admin', 'general_manager']:
-        outlets = Outlet.query.order_by(Outlet.name).all()
-        selected_outlet_id = request.args.get('outlet_id', type=int)
+    elif current_user.role in ['super_admin', 'general_manager', 'accountant']:
         if selected_outlet_id:
             query = query.filter_by(outlet_id=selected_outlet_id)
+            
+    query = query.order_by(Remittance.remittance_date.desc(), Remittance.recorded_at.desc())
+    
+    outlets = []
+    if current_user.role in ['super_admin', 'general_manager', 'accountant']:
+        outlets = Outlet.query.order_by(Outlet.name).all()
         
     remittances = query.paginate(page=page, per_page=20, error_out=False)
     
@@ -374,7 +399,8 @@ def remittances_list():
         'remittance/remittances.html',
         remittances=remittances,
         outlets=outlets,
-        selected_outlet_id=selected_outlet_id
+        selected_outlet_id=selected_outlet_id,
+        selected_date=selected_date
     )
 
 @remittance_bp.route('/collections/<int:id>', methods=['GET'])

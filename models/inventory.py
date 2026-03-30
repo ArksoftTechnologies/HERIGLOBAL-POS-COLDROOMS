@@ -7,7 +7,7 @@ class Inventory(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     product_id = db.Column(db.Integer, db.ForeignKey('products.id'), nullable=False)
     outlet_id = db.Column(db.Integer, db.ForeignKey('outlets.id'), nullable=False)
-    quantity = db.Column(db.Integer, nullable=False, default=0)
+    quantity = db.Column(db.Float, nullable=False, default=0.0)
     last_updated = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
     product = db.relationship('Product', backref=db.backref('inventory_records', lazy=True))
@@ -28,9 +28,9 @@ class InventoryAdjustment(db.Model):
     product_id = db.Column(db.Integer, db.ForeignKey('products.id'), nullable=False)
     outlet_id = db.Column(db.Integer, db.ForeignKey('outlets.id'), nullable=False)
     adjustment_type = db.Column(db.String(20), nullable=False) # 'initial_stock', 'manual_adjustment', 'damage', etc.
-    quantity_before = db.Column(db.Integer, nullable=False)
-    quantity_change = db.Column(db.Integer, nullable=False)
-    quantity_after = db.Column(db.Integer, nullable=False)
+    quantity_before = db.Column(db.Float, nullable=False)
+    quantity_change = db.Column(db.Float, nullable=False)
+    quantity_after = db.Column(db.Float, nullable=False)
     reason = db.Column(db.Text, nullable=False)
     reference_number = db.Column(db.String(50), nullable=True)
     adjusted_by = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
