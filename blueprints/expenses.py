@@ -60,9 +60,12 @@ def index():
 
     # Role-based filtering
     if current_user.role in ['outlet_admin', 'sales_rep']:
-        query = query.filter(Expense.outlet_id == current_user.outlet_id)
         if current_user.role == 'sales_rep':
-             pass # Sales Reps can see all expenses for their outlet as per requirements (or filter to own if needed)
+            # Sales reps see ONLY the expenses they personally recorded
+            query = query.filter(Expense.recorded_by == current_user.id)
+        else:
+            # Outlet admin sees all expenses for their outlet
+            query = query.filter(Expense.outlet_id == current_user.outlet_id)
 
     # Apply filters
     if date_from:

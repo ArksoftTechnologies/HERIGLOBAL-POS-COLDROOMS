@@ -264,3 +264,60 @@ def activate_user(id):
     
     flash(f'User {user.username} activated successfully', 'success')
     return redirect(url_for('users.list_users'))
+
+@users_bp.route('/profile', methods=['GET', 'POST'])
+@login_required
+def profile():
+    """User Profile settings"""
+    if request.method == 'GET':
+        return render_template('users/profile.html', user=current_user)
+        
+    # POST - Update profile
+    try:
+        full_name = request.form.get('full_name', '').strip()
+        email = request.form.get('email', '').strip()
+        
+        # Passwords
+        current_password = request.form.get('current_password', '')
+        new_password = request.form.get('new_password', '')
+        confirm_password = request.form.get('confirm_password', '')
+        
+        # Update basics
+        if full_name:
+            current_user.full_name = full_name
+        if email:
+            # check email uniqueness among OTHER users
+            existing_email = User.query.filter_by(email=email).first()
+            if existing_email and existing_email.id != current_user.id:
+                flash('Email already belongs to another account', 'error')
+                return redirect(url_for('users.profile'))
+            current_user.email = email
+            
+        # Update password if provided
+        if current_password or new_password or confirm_password:
+            if not current_password:
+                flash('Please provide your current password to set a new password', 'error')
+                return redirect(url_for('users.profile'))
+            if not current_user.check_password(current_password):
+                flash('Incorrect current password', 'error')
+                return redirect(url_for('users.profile'))
+            if not new_password or len(new_password) < 8:
+                flash('New password must be at least 8 characters', 'error')
+                return redirect(url_for('users.profile'))
+            if new_password != confirm_password:
+                flash('New passwords do not match', 'error')
+                return redirect(url_for('users.profile'))
+                
+            current_user.password_hash = generate_password_hash(new_password)
+            flash('Password updated successfully', 'success')
+            
+        current_user.updated_at = datetime.now()
+        db.session.commit()
+        
+        flash('Profile updated successfully', 'success')
+        return redirect(url_for('users.profile'))
+        
+    except Exception as e:
+        db.session.rollback()
+        flash(f'Error updating profile: {str(e)}', 'error')
+        return redirect(url_for('users.profile'))

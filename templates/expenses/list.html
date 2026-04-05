@@ -10,7 +10,11 @@
     <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
             <h1 class="text-2xl font-bold text-gray-900">Expenses</h1>
+            {% if current_user.role == 'sales_rep' %}
+            <p class="text-sm text-gray-500">Your recorded expenses, filterable by date</p>
+            {% else %}
             <p class="text-sm text-gray-500">Track and manage operational expenses</p>
+            {% endif %}
         </div>
         {% if current_user.role in ['super_admin', 'general_manager', 'outlet_admin', 'sales_rep'] %}
         <a href="{{ url_for('expenses.create') }}"
@@ -49,11 +53,15 @@
         </div>
     </div>
 
-    <!-- Filters -->
-    <div class="bg-white p-4 rounded-xl shadow-sm border border-gray-100" x-data="{ showFilters: false }">
+    <!-- Filters (always open for sales_rep, collapsible for others) -->
+    <div class="bg-white p-4 rounded-xl shadow-sm border border-gray-100"
+         x-data="{ showFilters: {% if current_user.role == 'sales_rep' %}true{% else %}false{% endif %} }">
         <div class="flex justify-between items-center cursor-pointer" @click="showFilters = !showFilters">
             <h3 class="font-medium text-gray-900 flex items-center">
                 <i data-lucide="filter" class="w-4 h-4 mr-2"></i> Filters
+                {% if request.args.get('date_from') or request.args.get('date_to') or request.args.get('category_id') %}
+                <span class="ml-2 inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-blue-100 text-blue-800">Active</span>
+                {% endif %}
             </h3>
             <i data-lucide="chevron-down" class="w-4 h-4 text-gray-400 transition-transform"
                 :class="{'rotate-180': showFilters}"></i>
@@ -179,18 +187,17 @@
         </div>
 
         <!-- Pagination -->
-        {% if pagination.pages > 1 %}
-        <div class="bg-white px-4 py-3 border-t border-gray-200 flex items-center justify-between sm:px-6">
-            <div class="hidden sm:flex-1 sm:flex sm:items-center sm:justify-between">
-                <div>
-                    <p class="text-sm text-gray-700">
-                        Showing <span class="font-medium">{{ (pagination.page - 1) * pagination.per_page + 1 }}</span>
-                        to <span class="font-medium">{{ [pagination.page * pagination.per_page, pagination.total]|min
-                            }}</span> of <span class="font-medium">{{ pagination.total }}</span> results
-                    </p>
-                </div>
-                <div>
-                    <nav class="relative z-0 inline-flex rounded-md shadow-sm -space-x-px" aria-label="Pagination">
+        {% if pagination.pages >= 1 %}
+        <div class="bg-white px-4 py-3 border-t border-gray-200 flex flex-col sm:flex-row items-center justify-between gap-3 sm:px-6">
+            <div>
+                <p class="text-sm text-gray-700">
+                    Showing <span class="font-medium">{{ (pagination.page - 1) * pagination.per_page + 1 if pagination.total > 0 else 0 }}</span>
+                    to <span class="font-medium">{{ [pagination.page * pagination.per_page, pagination.total]|min }}</span>
+                    of <span class="font-medium">{{ pagination.total }}</span> result{{ 's' if pagination.total != 1 else '' }}
+                </p>
+            </div>
+            <div>
+                <nav class="relative z-0 inline-flex rounded-md shadow-sm -space-x-px" aria-label="Pagination">
                         {% if pagination.has_prev %}
                         <a href="{{ url_for('expenses.index', page=pagination.prev_num, **request.args) }}"
                             class="relative inline-flex items-center px-2 py-2 rounded-l-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50">
@@ -218,15 +225,19 @@
                         {% endif %}
                         {% endfor %}
 
-                        {% if pagination.has_next %}
+                    {% if pagination.has_next %}
                         <a href="{{ url_for('expenses.index', page=pagination.next_num, **request.args) }}"
                             class="relative inline-flex items-center px-2 py-2 rounded-r-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50">
                             <span class="sr-only">Next</span>
                             <i data-lucide="chevron-right" class="w-5 h-5"></i>
                         </a>
+                        {% else %}
+                        <span class="relative inline-flex items-center px-2 py-2 rounded-r-md border border-gray-200 bg-gray-50 text-sm font-medium text-gray-300 cursor-not-allowed">
+                            <span class="sr-only">Next</span>
+                            <i data-lucide="chevron-right" class="w-5 h-5"></i>
+                        </span>
                         {% endif %}
-                    </nav>
-                </div>
+                </nav>
             </div>
         </div>
         {% endif %}

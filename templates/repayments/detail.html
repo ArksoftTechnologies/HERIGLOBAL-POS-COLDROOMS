@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% from "_pos_receipt_stub.html" import render_pos_receipt %}
 
 {% block title %}Repayment Receipt - {{ app_name }}{% endblock %}
 
@@ -10,7 +11,11 @@
                 class="text-gray-600 hover:text-gray-900 flex items-center gap-1">
                 <i data-lucide="arrow-left" class="w-4 h-4"></i> Back to List
             </a>
-            <div class="flex gap-2">
+            <div class="flex items-center gap-2 no-print">
+                <select id="receipt-paper-size" class="text-xs border border-gray-300 rounded-lg p-2 focus:ring-indigo-500 focus:border-indigo-500 bg-white">
+                    <option value="80mm" selected>80mm (Standard)</option>
+                    <option value="58mm">58mm (Small)</option>
+                </select>
                 <a href="{{ url_for('repayments.view_ledger', id=repayment.customer_id) }}"
                     class="bg-gray-100 text-gray-700 px-4 py-2 rounded-lg hover:bg-gray-200 text-sm font-medium">
                     View Ledger
@@ -26,8 +31,69 @@
             </div>
         </div>
 
-        <!-- Receipt Card -->
-        <div class="bg-white shadow-xl rounded-xl overflow-hidden print:shadow-none print:w-full">
+    <style>
+        @media print {
+            /* Hide UI elements */
+            .print\:hidden, aside, header, .no-print, button, a[href*="index"], .container div.flex.justify-between.items-center.no-print {
+                display: none !important;
+            }
+            
+            /* Receipt container setup */
+            body { 
+                background: white !important; 
+                margin: 0 !important; 
+                padding: 0 !important;
+            }
+            
+            #receipt-content {
+                width: 80mm !important;
+                margin: 0 auto !important;
+                padding: 5mm !important;
+                box-shadow: none !important;
+                border: none !important;
+                background: white !important;
+                position: relative !important;
+            }
+
+            /* Global typography for thermal paper */
+            * {
+                color: black !important;
+                font-family: 'Courier New', Courier, monospace !important;
+            }
+
+            .text-2xl { font-size: 1.25rem !important; margin-bottom: 0.5rem !important; }
+            .text-xl { font-size: 1.1rem !important; }
+            .text-sm { font-size: 0.85rem !important; }
+            .text-xs { font-size: 0.75rem !important; }
+            .font-bold { font-weight: 700 !important; }
+
+            /* Table packing */
+            table { width: 100% !important; border-collapse: collapse !important; margin: 10px 0 !important; }
+            th { border-bottom: 1px dashed #000 !important; padding: 4px 0 !important; text-align: left !important; }
+            td { padding: 6px 0 !important; vertical-align: top !important; }
+            
+            /* Borders & Spacing */
+            .border-t, .border-b, .border-gray-100 {
+                border-color: black !important;
+                border-style: dashed !important;
+                border-width: 1px 0 0 0 !important;
+            }
+            
+            .p-8, .p-6 { padding-left: 0 !important; padding-right: 0 !important; }
+            .mt-12, .mb-8 { margin-top: 1rem !important; margin-bottom: 1rem !important; }
+
+            /* Ensure amounts align right */
+            .text-right { text-align: right !important; }
+            
+            @page {
+                size: 80mm auto;
+                margin: 0;
+            }
+        }
+    </style>
+
+    <!-- Receipt Card -->
+    <div id="receipt-content" class="bg-white shadow-xl rounded-xl overflow-hidden print:shadow-none print:w-full">
             <!-- Header -->
             <div
                 class="bg-gray-800 text-white p-6 text-center print:bg-white print:text-black print:border-b-2 print:border-black">
@@ -119,27 +185,62 @@
         </div>
     </div>
 </div>
-<style>
-    @media print {
-        body * {
-            visibility: hidden;
-        }
+{% endblock %}
 
-        .container,
-        .container * {
-            visibility: visible;
+{% block scripts %}
+<script>
+    document.addEventListener('DOMContentLoaded', () => {
+        const sizeSelector = document.getElementById('receipt-paper-size');
+        const receiptContainer = document.getElementById('pos-receipt-container');
+        
+        if (sizeSelector && receiptContainer) {
+            sizeSelector.addEventListener('change', (e) => {
+                if (e.target.value === '58mm') {
+                    receiptContainer.classList.add('pos-58');
+                } else {
+                    receiptContainer.classList.remove('pos-58');
+                }
+            });
         }
+    });
+</script>
 
-        .container {
-            position: absolute;
-            left: 0;
-            top: 0;
-            width: 100%;
-        }
+{# Render the hidden POS receipt structure #}
+{% set pos_header = {
+    'name': app_name,
+    'address': repayment.outlet.address or 'Lagos, Nigeria',
+    'phone': repayment.outlet.phone or 'N/A'
+} %}
 
-        .no-print {
-            display: none !important;
-        }
-    }
-</style>
+{% set pos_meta = [
+    ('Repayment #', repayment.repayment_number),
+    ('Date', repayment.repayment_date.strftime('%Y-%m-%d %H:%M')),
+    ('Receiver', repayment.receiver.username if repayment.receiver else 'System'),
+    ('Customer', repayment.customer.name if repayment.customer else 'Walk-in')
+] %}
+
+{% set pos_items_list = [{
+    'name': 'Account Repayment',
+    'qty': '1',
+    'price': '₦' ~ "{:,.2f}".format(repayment.amount),
+    'subtotal': '₦' ~ "{:,.2f}".format(repayment.amount)
+}] %}
+
+{% set pos_totals = [
+    ('PREVIOUS BAL', '₦' ~ "{:,.2f}".format(repayment.balance_before), False),
+    ('PAYMENT', '₦' ~ "{:,.2f}".format(repayment.amount), True),
+    ('CLOSING BAL', '₦' ~ "{:,.2f}".format(repayment.balance_after), True)
+] %}
+
+{% set pos_payment = repayment.payment_mode.name if not repayment.is_split_payment else 'Split Payment' %}
+
+{{ render_pos_receipt(
+    'Payment Receipt',
+    pos_header,
+    pos_meta,
+    pos_items_list,
+    pos_totals,
+    pos_payment,
+    'Thank you for your payment!'
+) }}
 {% endblock %}

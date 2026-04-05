@@ -5,62 +5,72 @@
 
 {% block content %}
 <div class="max-w-3xl mx-auto">
-    <!-- Actions -->
+
+    {# ── Action Bar (hidden when printing) ── #}
     <div class="mb-6 flex justify-between items-center print:hidden">
         <a href="{{ url_for('sales.index') }}" class="text-sm text-gray-500 hover:text-gray-900 flex items-center">
             <i data-lucide="arrow-left" class="w-4 h-4 mr-1"></i> Back to Sales
         </a>
-        <div class="flex space-x-3">
+        <div class="flex items-center space-x-3">
             {% if sale.status == 'completed' %}
             <a href="{{ url_for('returns.create', sale_id=sale.id) }}"
                 class="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-lg text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none">
                 <i data-lucide="rotate-ccw" class="w-4 h-4 mr-2"></i> Process Return
             </a>
             {% endif %}
-            <div class="flex space-x-3">
-                {% if sale.status == 'completed' %}
-                <a href="{{ url_for('returns.create', sale_id=sale.id) }}"
-                    class="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-lg text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none">
-                    <i data-lucide="rotate-ccw" class="w-4 h-4 mr-2"></i> Process Return
-                </a>
-                {% endif %}
-                <button onclick="window.location.href=window.location.href + '?print=true'; window.print()"
+
+            <div class="flex items-center space-x-2">
+                <select id="receipt-paper-size"
+                    class="text-xs border border-gray-300 rounded-lg p-2 focus:ring-primary focus:border-primary bg-white">
+                    <option value="80mm" selected>80mm (Standard)</option>
+                    <option value="58mm">58mm (Small)</option>
+                </select>
+                <button onclick="printReceipt()"
                     class="inline-flex items-center px-4 py-2 border border-gray-300 shadow-sm text-sm font-medium rounded-lg text-gray-700 bg-white hover:bg-gray-50 focus:outline-none">
                     <i data-lucide="printer" class="w-4 h-4 mr-2"></i> Print Receipt
                 </button>
-                <a href="{{ url_for('sales.download_sale_pdf', id=sale.id) }}"
-                    class="inline-flex items-center px-4 py-2 border border-gray-300 shadow-sm text-sm font-medium rounded-lg text-gray-700 bg-white hover:bg-gray-50 focus:outline-none">
-                    <i data-lucide="download" class="w-4 h-4 mr-2"></i> Download PDF
-                </a>
             </div>
+
+            <a href="{{ url_for('sales.download_sale_pdf', id=sale.id) }}"
+                class="inline-flex items-center px-4 py-2 border border-gray-300 shadow-sm text-sm font-medium rounded-lg text-gray-700 bg-white hover:bg-gray-50 focus:outline-none">
+                <i data-lucide="download" class="w-4 h-4 mr-2"></i> Download PDF
+            </a>
         </div>
     </div>
 
-    <!-- Receipt Card -->
-    <div class="bg-white shadow-xl rounded-xl overflow-hidden border border-gray-200 print:shadow-none print:border-0">
-        <!-- Receipt Header -->
-        <div class="bg-gray-50 px-8 py-6 border-b border-gray-100 text-center print:bg-white print:border-none">
+    {# ── Web View Receipt Card (hidden when printing) ── #}
+    <div id="web-receipt" class="bg-white shadow-xl rounded-xl overflow-hidden border border-gray-200 print:hidden">
+        {# Header #}
+        <div class="bg-gray-50 px-8 py-6 border-b border-gray-100 text-center">
             <h1 class="text-2xl font-bold text-gray-900 tracking-wider">{{ app_name | upper }}</h1>
-            <p class="text-sm text-gray-600 mt-1">{{ sale.outlet.address }}, {{ sale.outlet.city }}</p>
-            <p class="text-sm text-gray-600">{{ sale.outlet.phone or '' }}</p>
+            <p class="text-sm text-gray-600 mt-1">
+                {{ sale.outlet.address if sale.outlet else '' }}{% if sale.outlet and sale.outlet.city %}, {{
+                sale.outlet.city }}{% endif %}
+            </p>
+            <p class="text-sm text-gray-600">{{ (sale.outlet.phone or '') if sale.outlet else '' }}</p>
 
             <div
                 class="mt-6 flex justify-between text-left text-sm text-gray-600 border-t border-dashed border-gray-300 pt-4">
                 <div>
                     <p><span class="font-semibold">Sale #:</span> {{ sale.sale_number }}</p>
-                    <p><span class="font-semibold">Date:</span> {{ sale.sale_date.strftime('%d %b %Y, %I:%M %p') }}</p>
-                    <p><span class="font-semibold">Rep:</span> {{ sale.sales_rep.full_name }}</p>
+                    <p><span class="font-semibold">Date:</span> {{ sale.sale_date.strftime('%d %b %Y, %I:%M %p') if
+                        sale.sale_date else 'N/A' }}</p>
+                    <p><span class="font-semibold">Rep:</span> {{ sale.sales_rep.full_name if sale.sales_rep else 'N/A'
+                        }}</p>
                 </div>
                 <div class="text-right">
-                    <p><span class="font-semibold">Customer:</span> {{ sale.customer.first_name }} {{
-                        sale.customer.last_name }}</p>
+                    <p><span class="font-semibold">Customer:</span>
+                        {{ sale.customer.first_name ~ ' ' ~ sale.customer.last_name if sale.customer else 'Walk-in' }}
+                    </p>
+                    {% if sale.customer %}
                     <p class="font-mono text-xs">{{ sale.customer.customer_number }}</p>
                     {% if sale.customer.phone != '00000000000' %}<p>{{ sale.customer.phone }}</p>{% endif %}
+                    {% endif %}
                 </div>
             </div>
         </div>
 
-        <!-- Items -->
+        {# Items #}
         <div class="px-8 py-4">
             <table class="w-full text-sm">
                 <thead>
@@ -75,11 +85,13 @@
                     {% for item in sale.items %}
                     <tr>
                         <td class="py-3">
-                            <p class="font-medium text-gray-900">{{ item.product.name }}</p>
-                            <p class="text-xs text-gray-500">{{ item.product.sku }}</p>
+                            <p class="font-medium text-gray-900">{{ item.product.name if item.product else 'Unknown
+                                Product' }}</p>
+                            <p class="text-xs text-gray-500">{{ item.product.sku if item.product else '' }}</p>
                         </td>
                         <td class="py-3 text-center">
-                            {{ "{:g}".format(item.quantity) if item.quantity % 1 == 0 else "{:.3f}".format(item.quantity).rstrip('0').rstrip('.') }}
+                            {{ "{:g}".format(item.quantity) if item.quantity % 1 == 0 else
+                            "{:.3f}".format(item.quantity).rstrip('0').rstrip('.') }}
                         </td>
                         <td class="py-3 text-right">₦{{ "{:,.2f}".format(item.unit_price) }}</td>
                         <td class="py-3 text-right font-semibold">₦{{ "{:,.2f}".format(item.subtotal) }}</td>
@@ -89,8 +101,8 @@
             </table>
         </div>
 
-        <!-- Totals -->
-        <div class="px-8 py-4 bg-gray-50 border-t border-gray-100 print:bg-white">
+        {# Totals #}
+        <div class="px-8 py-4 bg-gray-50 border-t border-gray-100">
             <div
                 class="flex justify-between items-center text-xl font-bold text-gray-900 border-t-2 border-dashed border-gray-300 pt-4">
                 <span>TOTAL</span>
@@ -98,32 +110,340 @@
             </div>
         </div>
 
-        <!-- Payment Details -->
+        {# Payment Details #}
         <div class="px-8 py-4 border-t border-gray-100 text-sm">
             <p class="font-semibold text-gray-900 mb-2">Payment Details:</p>
             {% if sale.is_split_payment %}
             {% for payment in sale.payments %}
             <div class="flex justify-between py-1">
-                <span>{{ payment.payment_mode.name }} {% if payment.transaction_reference %}<span
-                        class="text-xs text-gray-500">({{ payment.transaction_reference }})</span>{% endif %}</span>
+                <span>{{ payment.payment_mode.name if payment.payment_mode else 'N/A' }}
+                    {% if payment.transaction_reference %}<span class="text-xs text-gray-500">({{
+                        payment.transaction_reference }})</span>{% endif %}
+                </span>
                 <span class="font-medium">₦{{ "{:,.2f}".format(payment.amount) }}</span>
             </div>
             {% endfor %}
             {% else %}
             <div class="flex justify-between py-1">
-                <span>{{ sale.payment_mode.name }} {% if sale.transaction_reference %}<span
-                        class="text-xs text-gray-500">({{ sale.transaction_reference }})</span>{% endif %}</span>
+                <span>{{ sale.payment_mode.name if sale.payment_mode else 'N/A' }}
+                    {% if sale.transaction_reference %}<span class="text-xs text-gray-500">({{
+                        sale.transaction_reference }})</span>{% endif %}
+                </span>
                 <span class="font-medium">₦{{ "{:,.2f}".format(sale.total_amount) }}</span>
             </div>
             {% endif %}
         </div>
 
-        <!-- Footer -->
-        <div
-            class="bg-gray-50 px-8 py-6 border-t border-gray-100 text-center text-xs text-gray-500 print:bg-white print:border-none">
+        {# Footer #}
+        <div class="bg-gray-50 px-8 py-6 border-t border-gray-100 text-center text-xs text-gray-500">
             <p>Thank you for shopping with {{ app_name | upper }}!</p>
             <p class="mt-1">For inquiries, please contact specific outlet support.</p>
         </div>
     </div>
-</div>
+
+    {# ══════════════════════════════════════════════════════════════
+    THERMAL POS RECEIPT – only visible when printing
+    Designed for 80mm XPrinter (switches to 58mm via JS)
+    ══════════════════════════════════════════════════════════════ #}
+    <div id="pos-receipt" style="display:none;">
+        <div id="pos-receipt-inner">
+
+            {# Store Header #}
+            <div class="pos-center pos-bold pos-lg">{{ app_name | upper }}</div>
+            {% if sale.outlet %}
+            <div class="pos-center pos-sm">
+                {{ sale.outlet.address or '' }}{% if sale.outlet.city %}, {{ sale.outlet.city }}{% endif %}
+            </div>
+            {% if sale.outlet.phone %}
+            <div class="pos-center pos-sm">Tel: {{ sale.outlet.phone }}</div>
+            {% endif %}
+            {% endif %}
+            <div class="pos-divider"></div>
+
+            {# Receipt Title #}
+            <div class="pos-center pos-bold">SALES RECEIPT</div>
+            <div class="pos-divider"></div>
+
+            {# Transaction Meta #}
+            <div class="pos-row pos-sm">
+                <span>Sale #:</span><span>{{ sale.sale_number }}</span>
+            </div>
+            <div class="pos-row pos-sm">
+                <span>Date:</span><span>{{ sale.sale_date.strftime('%d-%b-%Y %I:%M%p') if sale.sale_date else 'N/A'
+                    }}</span>
+            </div>
+            <div class="pos-row pos-sm">
+                <span>Cashier:</span><span>{{ sale.sales_rep.full_name if sale.sales_rep else 'N/A' }}</span>
+            </div>
+            <div class="pos-row pos-sm">
+                <span>Customer:</span>
+                <span>
+                    {% if sale.customer %}
+                    {{ sale.customer.first_name }} {{ sale.customer.last_name }}
+                    {% if sale.customer.is_walk_in %}(Walk-in){% endif %}
+                    {% else %}Walk-in{% endif %}
+                </span>
+            </div>
+            {% if sale.customer and not sale.customer.is_walk_in %}
+            <div class="pos-row pos-sm">
+                <span>Cust. #:</span><span>{{ sale.customer.customer_number }}</span>
+            </div>
+            {% if sale.customer.phone and sale.customer.phone != '00000000000' %}
+            <div class="pos-row pos-sm">
+                <span>Phone:</span><span>{{ sale.customer.phone }}</span>
+            </div>
+            {% endif %}
+            {% endif %}
+            <div class="pos-divider-dashed"></div>
+
+            {# Items Header #}
+            <table class="pos-table pos-sm">
+                <thead>
+                    <tr>
+                        <th class="pos-left">ITEM</th>
+                        <th class="pos-right">QTY</th>
+                        <th class="pos-right">PRICE</th>
+                        <th class="pos-right">AMT</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td colspan="4">
+                            <div class="pos-divider-dashed"></div>
+                        </td>
+                    </tr>
+                    {% for item in sale.items %}
+                    <tr>
+                        <td class="pos-left pos-item-name">{{ item.product.name if item.product else 'Unknown' }}</td>
+                        <td class="pos-right">{{ "{:g}".format(item.quantity) if item.quantity % 1 == 0 else
+                            "{:.3f}".format(item.quantity).rstrip('0').rstrip('.') }}</td>
+                        <td class="pos-right">{{ "{:,.2f}".format(item.unit_price) }}</td>
+                        <td class="pos-right">{{ "{:,.2f}".format(item.subtotal) }}</td>
+                    </tr>
+                    {% endfor %}
+                    <tr>
+                        <td colspan="4">
+                            <div class="pos-divider-dashed"></div>
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+
+            {# Total #}
+            <div class="pos-row pos-bold pos-lg">
+                <span>TOTAL</span>
+                <span>N{{ "{:,.2f}".format(sale.total_amount) }}</span>
+            </div>
+            <div class="pos-divider-dashed"></div>
+
+            {# Payment #}
+            <div class="pos-sm pos-bold">Payment:</div>
+            {% if sale.is_split_payment %}
+            {% for payment in sale.payments %}
+            <div class="pos-row pos-sm">
+                <span>{{ payment.payment_mode.name if payment.payment_mode else 'N/A' }}</span>
+                <span>N{{ "{:,.2f}".format(payment.amount) }}</span>
+            </div>
+            {% if payment.transaction_reference %}
+            <div class="pos-sm pos-muted"> Ref: {{ payment.transaction_reference }}</div>
+            {% endif %}
+            {% endfor %}
+            {% else %}
+            <div class="pos-row pos-sm">
+                <span>{{ sale.payment_mode.name if sale.payment_mode else 'N/A' }}</span>
+                <span>N{{ "{:,.2f}".format(sale.total_amount) }}</span>
+            </div>
+            {% if sale.transaction_reference %}
+            <div class="pos-sm pos-muted">Ref: {{ sale.transaction_reference }}</div>
+            {% endif %}
+            {% endif %}
+            <div class="pos-divider"></div>
+
+            {# Footer #}
+            <div class="pos-center pos-sm">Thank you for your patronage!</div>
+            <div class="pos-center pos-sm">{{ app_name }}</div>
+            <div class="pos-spacer"></div>
+
+        </div>{# /pos-receipt-inner #}
+    </div>{# /pos-receipt #}
+
+</div>{# /max-w-3xl #}
+{% endblock %}
+
+
+{% block scripts %}
+<style>
+    /* ════════════════════════════════════════════════
+       THERMAL RECEIPT STYLESHEET
+       Isolates cleanly to #pos-receipt-inner only.
+       Works on 80mm (default) and 58mm XPrinters.
+    ════════════════════════════════════════════════ */
+
+    /* -- Receipt base styles (scoped) -- */
+    #pos-receipt-inner {
+        /* font-family: 'Consolas', 'Lucida Console', 'Courier New', monospace; */
+        font-family: 'Arial', 'Helvetica', sans-serif;
+        font-size: 12px;
+        color: #000;
+        background: #fff;
+        width: 72mm;
+        /* printable area of 80mm roll */
+        margin: 0 auto;
+        padding: 4px 0;
+        line-height: 1.4;
+        font-weight: 700;
+        letter-spacing: 0.5px;
+    }
+
+    #pos-receipt-inner.size-58 {
+        width: 50mm;
+        /* printable area of 58mm roll */
+        font-size: 11px;
+    }
+
+    .pos-center {
+        text-align: center;
+    }
+
+    .pos-bold {
+        font-weight: bold;
+    }
+
+    .pos-lg {
+        font-size: 14px;
+    }
+
+    .pos-sm {
+        font-size: 11px;
+    }
+
+    .pos-muted {
+        color: #555;
+    }
+
+    .pos-left {
+        text-align: left;
+    }
+
+    .pos-right {
+        text-align: right;
+    }
+
+    .pos-divider {
+        border-top: 1px solid #000;
+        margin: 3px 0;
+    }
+
+    .pos-divider-dashed {
+        border-top: 1px dashed #000;
+        margin: 3px 0;
+    }
+
+    .pos-spacer {
+        height: 12mm;
+    }
+
+    /* feed after last line */
+
+    .pos-row {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        margin: 1px 0;
+    }
+
+    /* Items table */
+    .pos-table {
+        width: 100%;
+        border-collapse: collapse;
+    }
+
+    .pos-table th,
+    .pos-table td {
+        padding: 1px 2px;
+        vertical-align: top;
+    }
+
+    .pos-table th {
+        font-weight: bold;
+    }
+
+    .pos-item-name {
+        max-width: 28mm;
+        word-break: break-word;
+        white-space: normal;
+    }
+
+    #pos-receipt-inner.size-58 .pos-item-name {
+        max-width: 20mm;
+    }
+
+    /* ── PRINT MEDIA ── */
+    @media print {
+
+        /* Hide everything on the page */
+        body * {
+            visibility: hidden !important;
+        }
+
+        /* Show only the receipt */
+        #pos-receipt,
+        #pos-receipt * {
+            visibility: visible !important;
+        }
+
+        #pos-receipt {
+            display: block !important;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+        }
+
+        @page {
+            margin: 0;
+            size: 80mm auto;
+            /* JS overrides this to 58mm when selected */
+        }
+    }
+</style>
+
+<script>
+    (function () {
+        var sizeSelect = document.getElementById('receipt-paper-size');
+        var inner = document.getElementById('pos-receipt-inner');
+
+        function applySize(val) {
+            if (!inner) return;
+            if (val === '58mm') {
+                inner.classList.add('size-58');
+            } else {
+                inner.classList.remove('size-58');
+            }
+        }
+
+        if (sizeSelect) {
+            sizeSelect.addEventListener('change', function () {
+                applySize(this.value);
+            });
+        }
+
+        window.printReceipt = function () {
+            var size = sizeSelect ? sizeSelect.value : '80mm';
+            applySize(size);
+
+            // Inject the correct @page size dynamically
+            var styleId = 'dynamic-page-size';
+            var existing = document.getElementById(styleId);
+            if (existing) existing.remove();
+
+            var s = document.createElement('style');
+            s.id = styleId;
+            s.textContent = '@media print { @page { size: ' + size + ' auto; margin: 0; } }';
+            document.head.appendChild(s);
+
+            window.print();
+        };
+    })();
+</script>
 {% endblock %}

@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Daily Balance Sheet - {{ app_name }}</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @page {
+            size: A4 portrait;
+            margin: 15mm;
+        }
+        body { font-family: 'Inter', -apple-system, sans-serif; background-color: white; color: #1f2937; line-height: 1.4; }
+        @media print {
+            body { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; margin: 0; }
+            .no-print { display: none !important; }
+            table, tr, td, th, .avoid-break { page-break-inside: avoid; }
+        }
+        .header-panel { border-bottom: 2px solid #e5e7eb; padding-bottom: 1rem; margin-bottom: 1.5rem; }
+    </style>
+</head>
+<body onload="window.print()">
+
+    <div class="header-panel flex justify-between items-end">
+        <div>
+            <h1 class="text-3xl font-bold text-indigo-700">{{ company_name }}</h1>
+            <p class="text-sm text-gray-500 mt-1">{{ app_name }}</p>
+        </div>
+        <div class="text-right">
+            <h2 class="text-xl font-bold text-gray-800">Daily Balance Sheet</h2>
+            <p class="text-sm text-gray-600 mt-1">
+                Date: <span class="font-medium text-gray-900">{{ target_date.strftime('%B %d, %Y') }}</span>
+            </p>
+            {% if selected_outlet %}
+            <p class="text-sm text-gray-600">Outlet: <span class="font-medium text-gray-900">{{ selected_outlet.name }}</span></p>
+            {% else %}
+            <p class="text-sm text-gray-600">Outlet: <span class="font-medium text-gray-900">All Authorized</span></p>
+            {% endif %}
+        </div>
+    </div>
+
+    {% if cumulative_data %}
+        <div class="mb-8 avoid-break border border-slate-400 rounded-lg overflow-hidden pb-4">
+            <div class="bg-slate-100 px-6 py-4 border-b border-slate-300 flex justify-between items-center">
+                <div>
+                    <h3 class="text-xl font-bold text-slate-900">Total Outlet Summary</h3>
+                    <p class="text-sm text-slate-700">{{ cumulative_data.outlet_name }} | Combined Data</p>
+                </div>
+                <div class="text-right">
+                    <p class="text-xs font-semibold text-slate-700 uppercase tracking-widest">Total Leftover Cash (Today)</p>
+                    <p class="text-3xl font-black text-slate-900">₦{{ "{:,.2f}".format(cumulative_data.leftover) }}</p>
+                </div>
+            </div>
+
+            <div class="px-6 pt-6">
+                <div class="grid grid-cols-2 gap-8">
+                    <!-- Cash Inwards Section -->
+                    <div>
+                        <h4 class="text-sm font-bold text-slate-900 uppercase tracking-widest border-b border-slate-200 pb-2 mb-4">
+                            Combined Cash Available (In)
+                        </h4>
+                        <table class="w-full text-sm">
+                            <tbody>
+                                <tr>
+                                    <td class="py-2 text-slate-800">1. Yesterday's Unremitted Balance</td>
+                                    <td class="py-2 text-right font-bold text-slate-900">₦{{ "{:,.2f}".format(cumulative_data.yesterday_outstanding) }}</td>
+                                </tr>
+                                <tr>
+                                    <td class="py-2 text-slate-800">2. Today's Non-Credit Sales</td>
+                                    <td class="py-2 text-right font-bold text-slate-900">₦{{ "{:,.2f}".format(cumulative_data.today_sales) }}</td>
+                                </tr>
+                                <tr>
+                                    <td class="py-2 text-slate-800">3. Today's Repayments Collected</td>
+                                    <td class="py-2 text-right font-bold text-slate-900">₦{{ "{:,.2f}".format(cumulative_data.today_repayments) }}</td>
+                                </tr>
+                                {% if cumulative_data.today_other_in > 0 %}
+                                <tr>
+                                    <td class="py-2 text-slate-800">4. Other Inwards</td>
+                                    <td class="py-2 text-right font-bold text-slate-900">₦{{ "{:,.2f}".format(cumulative_data.today_other_in) }}</td>
+                                </tr>
+                                {% endif %}
+                                <tr class="border-t border-slate-300 font-bold">
+                                    <td class="py-2 pt-3 text-slate-900 uppercase">Total Cash In</td>
+                                    <td class="py-2 pt-3 text-right">₦{{ "{:,.2f}".format(cumulative_data.yesterday_outstanding + cumulative_data.today_sales + cumulative_data.today_repayments + cumulative_data.today_other_in) }}</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <!-- Cash Outwards Section -->
+                    <div>
+                        <h4 class="text-sm font-bold text-slate-900 uppercase tracking-widest border-b border-slate-200 pb-2 mb-4">
+                            Combined Cash Remitted/Spent (Out)
+                        </h4>
+                        <table class="w-full text-sm">
+                            <tbody>
+                                <tr>
+                                    <td class="py-2 text-slate-800">Less: Today's Expenses</td>
+                                    <td class="py-2 text-right font-bold">- ₦{{ "{:,.2f}".format(cumulative_data.today_exp) }}</td>
+                                </tr>
+                                <tr>
+                                    <td class="py-2 text-slate-800">Less: Today's Remittances</td>
+                                    <td class="py-2 text-right font-bold">- ₦{{ "{:,.2f}".format(cumulative_data.today_rem) }}</td>
+                                </tr>
+                                <tr class="border-t border-slate-300 font-bold">
+                                    <td class="py-2 pt-3 text-slate-900 uppercase">Total Deductions</td>
+                                    <td class="py-2 pt-3 text-right">- ₦{{ "{:,.2f}".format(cumulative_data.today_exp + cumulative_data.today_rem) }}</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <h3 class="text-lg font-bold text-gray-800 mb-4 border-b border-gray-200 pb-2 mt-8">Individual Breakdowns</h3>
+    {% endif %}
+
+    {% if report_data %}
+        {% for row in report_data %}
+        <div class="mb-8 avoid-break border border-gray-300 rounded-lg overflow-hidden">
+            <div class="bg-gray-100 px-6 py-4 border-b border-gray-300 flex justify-between items-center">
+                <div>
+                    <h3 class="text-lg font-bold text-gray-900">{{ row.sales_rep.full_name }}</h3>
+                    <p class="text-sm text-gray-600">{{ row.sales_rep.outlet.name }}</p>
+                </div>
+                <div class="text-right">
+                    <p class="text-xs font-semibold text-gray-500 uppercase tracking-widest">Leftover Cash (Today)</p>
+                    <p class="text-2xl font-bold text-indigo-700">₦{{ "{:,.2f}".format(row.leftover) }}</p>
+                </div>
+            </div>
+
+            <div class="p-6">
+                <div class="grid grid-cols-2 gap-8">
+                    
+                    <!-- Cash Inwards Section -->
+                    <div>
+                        <h4 class="text-sm font-bold text-gray-800 uppercase tracking-widest border-b border-gray-200 pb-2 mb-4 text-green-700">
+                            Cash Available (In)
+                        </h4>
+                        <table class="w-full text-sm">
+                            <tbody>
+                                <tr>
+                                    <td class="py-2 text-gray-600">1. Yesterday's Unremitted Balance</td>
+                                    <td class="py-2 text-right font-medium">₦{{ "{:,.2f}".format(row.yesterday_outstanding) }}</td>
+                                </tr>
+                                <tr>
+                                    <td class="py-2 text-gray-600">2. Today's Non-Credit Sales</td>
+                                    <td class="py-2 text-right font-medium">₦{{ "{:,.2f}".format(row.today_sales) }}</td>
+                                </tr>
+                                <tr>
+                                    <td class="py-2 text-gray-600">3. Today's Repayments Collected</td>
+                                    <td class="py-2 text-right font-medium">₦{{ "{:,.2f}".format(row.today_repayments) }}</td>
+                                </tr>
+                                {% if row.today_other_in > 0 %}
+                                <tr>
+                                    <td class="py-2 text-gray-600">4. Other Inwards</td>
+                                    <td class="py-2 text-right font-medium">₦{{ "{:,.2f}".format(row.today_other_in) }}</td>
+                                </tr>
+                                {% endif %}
+                                <tr class="border-t border-gray-200 font-bold">
+                                    <td class="py-2 pt-3 text-gray-800">Total Cash In</td>
+                                    <td class="py-2 pt-3 text-right text-green-700">₦{{ "{:,.2f}".format(row.yesterday_outstanding + row.today_sales + row.today_repayments + row.today_other_in) }}</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <!-- Cash Outwards Section -->
+                    <div>
+                        <h4 class="text-sm font-bold text-gray-800 uppercase tracking-widest border-b border-gray-200 pb-2 mb-4 text-red-700">
+                            Cash Remitted / Spent (Out)
+                        </h4>
+                        <table class="w-full text-sm">
+                            <tbody>
+                                <tr>
+                                    <td class="py-2 text-gray-600">Less: Today's Expenses</td>
+                                    <td class="py-2 text-right font-medium text-red-600">- ₦{{ "{:,.2f}".format(row.today_exp) }}</td>
+                                </tr>
+                                <tr>
+                                    <td class="py-2 text-gray-600">Less: Today's Remittances</td>
+                                    <td class="py-2 text-right font-medium text-red-600">- ₦{{ "{:,.2f}".format(row.today_rem) }}</td>
+                                </tr>
+                                <tr class="border-t border-gray-200 font-bold">
+                                    <td class="py-2 pt-3 text-gray-800">Total Deductions</td>
+                                    <td class="py-2 pt-3 text-right text-red-700">- ₦{{ "{:,.2f}".format(row.today_exp + row.today_rem) }}</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    {% else %}
+        <div class="py-12 text-center text-gray-500 italic border border-gray-200 rounded-lg">
+            No sales rep data available for the selected filters.
+        </div>
+    {% endif %}
+
+    <div class="mt-8 pt-4 border-t border-gray-200 text-xs text-gray-400 flex justify-between">
+        <p>Generated by {{ generated_by }} on {{ generated_at.strftime('%Y-%m-%d %H:%M') }}</p>
+        <p>Page <span class="pageNumber"></span> of <span class="totalPages"></span></p>
+    </div>
+
+    <div class="no-print mt-8 flex justify-center">
+        <button onclick="window.close()" class="px-6 py-2 bg-gray-800 text-white rounded-lg shadow hover:bg-gray-700 font-medium">Close Print View</button>
+    </div>
+
+</body>
+</html>

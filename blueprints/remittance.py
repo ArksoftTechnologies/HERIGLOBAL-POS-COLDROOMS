@@ -9,6 +9,8 @@ from datetime import datetime, date, timedelta
 from sqlalchemy import func, desc
 from functools import wraps
 from utils.pdf_generator import PDFGenerator
+from utils.pdf_generator import PDFGenerator
+from models.expense import Expense
 import io
 
 remittance_bp = Blueprint('remittance', __name__, url_prefix='/remittance')
@@ -79,6 +81,7 @@ def index():
     query_col = db.session.query(func.sum(CashCollection.amount))
     query_col_rev = db.session.query(func.sum(CashCollection.amount))
     query_rem = db.session.query(func.sum(Remittance.amount))
+    query_exp = db.session.query(func.sum(Expense.amount)).filter(Expense.status != 'rejected')
     
     if current_user.role == 'sales_rep':
         query_col = query_col.filter(
@@ -90,6 +93,7 @@ def index():
             CashCollection.is_reversal == True
         )
         query_rem = query_rem.filter(Remittance.sales_rep_id == current_user.id)
+        query_exp = query_exp.filter(Expense.recorded_by == current_user.id)
     elif current_user.role == 'outlet_admin':
         query_col = query_col.filter(
             CashCollection.outlet_id == current_user.outlet_id,
@@ -100,6 +104,7 @@ def index():
             CashCollection.is_reversal == True
         )
         query_rem = query_rem.filter(Remittance.outlet_id == current_user.outlet_id)
+        query_exp = query_exp.filter(Expense.outlet_id == current_user.outlet_id)
     else:
         # super_admin / general_manager: optionally filter by outlet
         query_col = query_col.filter(CashCollection.is_reversal == False)
@@ -108,10 +113,12 @@ def index():
             query_col = query_col.filter(CashCollection.outlet_id == selected_outlet_id)
             query_col_rev = query_col_rev.filter(CashCollection.outlet_id == selected_outlet_id)
             query_rem = query_rem.filter(Remittance.outlet_id == selected_outlet_id)
+            query_exp = query_exp.filter(Expense.outlet_id == selected_outlet_id)
         
     total_collections = (query_col.scalar() or 0) - (query_col_rev.scalar() or 0)
     total_remittances = query_rem.scalar() or 0
-    outstanding_balance = max(0, total_collections - total_remittances)
+    total_expenses = query_exp.scalar() or 0
+    outstanding_balance = max(0, total_collections - total_remittances - total_expenses)
     
     # Recent Activity
     recent_collections = CashCollection.query
@@ -178,6 +185,7 @@ def declare_collection():
                 
             collection_number = generate_collection_number()
             
+            pm_id = data.get('payment_mode_id')
             collection = CashCollection(
                 collection_number=collection_number,
                 sales_rep_id=sales_rep_id,
@@ -185,7 +193,7 @@ def declare_collection():
                 collection_date=collection_date,
                 collection_type=data.get('collection_type'),
                 amount=amount,
-                payment_mode_id=data.get('payment_mode_id'),
+                payment_mode_id=int(pm_id) if pm_id else None,
                 transaction_reference=data.get('transaction_reference'),
                 source_description=source_description,
                 notes=data.get('notes')
@@ -255,17 +263,20 @@ def record_remittance():
                 sales_rep_id = data.get('sales_rep_id') or current_user.id
                 outlet_id = data.get('outlet_id') or current_user.outlet_id
 
-            # Validate that they are not remitting more than they collected
+            # Validate that they are not remitting more than they legitimately hold
             total_col = db.session.query(func.sum(CashCollection.amount)).filter_by(sales_rep_id=sales_rep_id, is_reversal=False).scalar() or 0
             total_col_rev = db.session.query(func.sum(CashCollection.amount)).filter_by(sales_rep_id=sales_rep_id, is_reversal=True).scalar() or 0
             total_rem = db.session.query(func.sum(Remittance.amount)).filter_by(sales_rep_id=sales_rep_id).scalar() or 0
-            cur_outstanding = max(0, (total_col - total_col_rev) - total_rem)
+            total_exp = db.session.query(func.sum(Expense.amount)).filter(Expense.recorded_by == sales_rep_id, Expense.status != 'rejected').scalar() or 0
+            
+            cur_outstanding = max(0, (total_col - total_col_rev) - (total_rem + total_exp))
             
             if amount > cur_outstanding:
                 raise ValueError(f"Cannot remit more than collected amount. Outstanding is ₦{cur_outstanding:,.2f}")
 
             remittance_number = generate_remittance_number()
             
+            pm_id = data.get('payment_mode_id')
             remittance = Remittance(
                 remittance_number=remittance_number,
                 sales_rep_id=sales_rep_id,
@@ -273,7 +284,7 @@ def record_remittance():
                 remittance_date=remittance_date,
                 amount=amount,
                 remittance_method=remittance_method,
-                payment_mode_id=data.get('payment_mode_id'),
+                payment_mode_id=int(pm_id) if pm_id else None,
                 bank_name=bank_name,
                 account_number=data.get('account_number'),
                 transaction_reference=transaction_reference,

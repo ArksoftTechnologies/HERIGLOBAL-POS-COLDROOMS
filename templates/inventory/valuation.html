@@ -24,6 +24,29 @@
         </div>
     </div>
 
+    <!-- Filters -->
+    <div class="bg-white p-4 rounded-xl shadow-sm border border-gray-200">
+        <form method="GET" action="{{ url_for('inventory.valuation') }}" class="flex flex-col sm:flex-row gap-4 items-end">
+            <div class="flex-1">
+                <label for="outlet_id" class="block text-sm font-medium text-gray-700 mb-1">Filter by Outlet</label>
+                <select name="outlet_id" id="outlet_id" class="w-full sm:w-64 rounded-lg border-gray-300 shadow-sm focus:border-primary focus:ring-primary text-sm">
+                    <option value="">All Outlets</option>
+                    {% for outlet in all_outlets %}
+                    <option value="{{ outlet.id }}" {% if selected_outlet and selected_outlet.id == outlet.id %}selected{% endif %}>
+                        {{ outlet.name }}
+                    </option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div>
+                <button type="submit" class="w-full sm:w-auto inline-flex justify-center items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-lg text-white bg-primary hover:bg-indigo-700 focus:outline-none transition-colors">
+                    <i data-lucide="filter" class="w-4 h-4 mr-2"></i>
+                    Apply Filter
+                </button>
+            </div>
+        </form>
+    </div>
+
     <!-- Summary Cards -->
     <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
         <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-200">

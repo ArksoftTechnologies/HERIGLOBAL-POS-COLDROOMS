@@ -13,6 +13,8 @@
             Sales Reports
         </h2>
         <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            
+            {% if current_user.role != 'sales_rep' %}
             <a href="{{ url_for('reports.sales_summary') }}"
                 class="group p-4 border border-gray-200 rounded-lg hover:border-primary hover:bg-indigo-50 transition-all">
                 <div class="flex items-center justify-between mb-2">
@@ -39,6 +41,16 @@
                 </div>
                 <p class="text-sm text-gray-500">Analysis of payment methods and credit sales performance.</p>
             </a>
+            {% endif %}
+
+            <a href="{{ url_for('reports.daily_balance_sheet') }}"
+                class="group p-4 border border-gray-200 rounded-lg hover:border-primary hover:bg-indigo-50 transition-all">
+                <div class="flex items-center justify-between mb-2">
+                    <h3 class="font-medium text-gray-900 group-hover:text-primary">Daily Balance Sheet</h3>
+                    <i data-lucide="calculator" class="w-5 h-5 text-gray-400 group-hover:text-primary"></i>
+                </div>
+                <p class="text-sm text-gray-500">Detailed daily cash leftover and operations balance.</p>
+            </a>
         </div>
     </div>
 
@@ -49,6 +61,7 @@
             Inventory Reports
         </h2>
         <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {% if current_user.role != 'sales_rep' %}
             <a href="{{ url_for('reports.warehouse_receive') }}"
                 class="group p-4 border border-gray-200 rounded-lg hover:border-primary hover:bg-indigo-50 transition-all">
                 <div class="flex items-center justify-between mb-2">
@@ -57,6 +70,7 @@
                 </div>
                 <p class="text-sm text-gray-500">Stock received directly into the central warehouse via manual adjustments.</p>
             </a>
+            {% endif %}
             
             <a href="{{ url_for('reports.inventory_balance_sheet') }}"
                 class="group p-4 border border-gray-200 rounded-lg hover:border-primary hover:bg-indigo-50 transition-all">
@@ -67,6 +81,7 @@
                 <p class="text-sm text-gray-500">Reconciliation of opening stock, movement, and closing stock.</p>
             </a>
 
+            {% if current_user.role != 'sales_rep' %}
             <a href="{{ url_for('reports.inventory_low_stock') }}"
                 class="group p-4 border border-gray-200 rounded-lg hover:border-primary hover:bg-indigo-50 transition-all">
                 <div class="flex items-center justify-between mb-2">
@@ -94,6 +109,7 @@
                 <p class="text-sm text-gray-500">Total inventory value based on cost and selling price. (Coming Soon)
                 </p>
             </a>
+            {% endif %}
         </div>
     </div>
 
@@ -104,6 +120,7 @@
             Operational Reports
         </h2>
         <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {% if current_user.role != 'sales_rep' %}
             <a href="{{ url_for('reports.stock_receive') }}"
                 class="group p-4 border border-gray-200 rounded-lg hover:border-primary hover:bg-indigo-50 transition-all">
                 <div class="flex items-center justify-between mb-2">
@@ -112,6 +129,7 @@
                 </div>
                 <p class="text-sm text-gray-500">All stock received per outlet over a selected date range.</p>
             </a>
+            {% endif %}
 
             <a href="{{ url_for('reports.products_sold') }}"
                 class="group p-4 border border-gray-200 rounded-lg hover:border-primary hover:bg-indigo-50 transition-all">
@@ -122,6 +140,7 @@
                 <p class="text-sm text-gray-500">Summary of every product sold (qty, revenue, avg price) by period.</p>
             </a>
 
+            {% if current_user.role != 'sales_rep' %}
             <a href="{{ url_for('reports.sales_by_outlet') }}"
                 class="group p-4 border border-gray-200 rounded-lg hover:border-primary hover:bg-indigo-50 transition-all">
                 <div class="flex items-center justify-between mb-2">
@@ -130,6 +149,7 @@
                 </div>
                 <p class="text-sm text-gray-500">Per-outlet revenue and transaction counts for any date range.</p>
             </a>
+            {% endif %}
         </div>
     </div>
 </div>

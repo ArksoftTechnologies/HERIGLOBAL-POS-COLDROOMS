@@ -31,7 +31,7 @@ def warehouse():
     total_value = 0
     all_items = db.session.query(Product, Inventory).join(Inventory).filter(Inventory.outlet_id == warehouse.id).all()
     for p, i in all_items:
-        total_value += (p.cost_price * i.quantity)
+        total_value += (float(p.cost_price) * i.quantity)
         
     low_stock_count = db.session.query(Inventory).join(Product).filter(
         Inventory.outlet_id == warehouse.id,
@@ -54,23 +54,49 @@ def warehouse():
 @login_required
 @role_required(['super_admin', 'general_manager', 'accountant'])
 def valuation():
-    warehouse = Outlet.query.get(1)
-    inventory_items = db.session.query(Product, Inventory).join(Inventory).filter(Inventory.outlet_id == warehouse.id).all()
+    outlet_id = request.args.get('outlet_id', '', type=str)
+    all_outlets = Outlet.query.filter_by(is_active=True).order_by(Outlet.id).all()
+    
+    base_query = db.session.query(Product, Inventory).join(Inventory)
+    selected_outlet = None
+    
+    if outlet_id:
+        try:
+            oid = int(outlet_id)
+            selected_outlet = Outlet.query.get(oid)
+            if selected_outlet:
+                base_query = base_query.filter(Inventory.outlet_id == selected_outlet.id)
+        except (ValueError, TypeError):
+            pass
+            
+    inventory_items = base_query.all()
+    
+    aggregated_data = {}
+    for p, i in inventory_items:
+        if p.id not in aggregated_data:
+            aggregated_data[p.id] = {
+                'product': p,
+                'quantity': 0
+            }
+        aggregated_data[p.id]['quantity'] += i.quantity
     
     total_cost_value = 0
     total_potential_revenue = 0
     
     valuation_data = []
-    for p, i in inventory_items:
-        cost_value = p.cost_price * i.quantity
-        potential_rev = p.selling_price * i.quantity
+    for data in aggregated_data.values():
+        p = data['product']
+        qty = data['quantity']
+        
+        cost_value = float(p.cost_price) * qty
+        potential_rev = float(p.selling_price) * qty
         
         total_cost_value += cost_value
         total_potential_revenue += potential_rev
         
         valuation_data.append({
             'product': p,
-            'quantity': i.quantity,
+            'quantity': qty,
             'cost_value': cost_value,
             'potential_revenue': potential_rev,
             'potential_profit': potential_rev - cost_value
@@ -80,7 +106,9 @@ def valuation():
                            valuation_data=valuation_data,
                            total_cost_value=total_cost_value,
                            total_potential_revenue=total_potential_revenue,
-                           total_potential_profit=total_potential_revenue - total_cost_value)
+                           total_potential_profit=total_potential_revenue - total_cost_value,
+                           all_outlets=all_outlets,
+                           selected_outlet=selected_outlet)
 
 @inventory_bp.route('/inventory/outlets')
 @login_required
@@ -155,7 +183,7 @@ def outlet_detail(id):
     
     # Stats
     total_items = len(inventory)
-    total_value = sum(item.quantity * item.product.cost_price for item in inventory)
+    total_value = sum(item.quantity * float(item.product.cost_price) for item in inventory)
     low_stock = sum(1 for item in inventory if item.quantity <= item.product.reorder_level and item.quantity > 0)
     
     return render_template('inventory/outlet_detail.html', 

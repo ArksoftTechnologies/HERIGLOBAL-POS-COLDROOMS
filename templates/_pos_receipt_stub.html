@@ -1,0 +1,105 @@
+{% macro render_pos_receipt(title, header, meta, items, totals, payment, footer) %}
+<div id="pos-receipt-wrapper" class="hidden print:block">
+    <div id="pos-receipt-container" class="pos-80 mx-auto bg-white p-2">
+        <style>
+            #pos-receipt-container {
+                width: 80mm;
+                font-family: 'Courier New', Courier, monospace;
+                color: black;
+                background: white;
+            }
+            #pos-receipt-container.pos-58 {
+                width: 58mm;
+            }
+            .border-b-dashed {
+                border-bottom: 1px dashed black;
+                margin: 4px 0;
+            }
+            .receipt-table {
+                width: 100%;
+                border-collapse: collapse;
+            }
+            .receipt-table th {
+                text-align: left;
+                border-bottom: 1px dashed black;
+                padding: 4px 0;
+            }
+            .receipt-table td {
+                padding: 4px 0;
+                vertical-align: top;
+            }
+            .text-center { text-align: center; }
+            .text-right { text-align: right; }
+            .font-bold { font-weight: bold; }
+            .text-sm { font-size: 11px; }
+            .text-xs { font-size: 9px; }
+            .uppercase { text-transform: uppercase; }
+            .flex { display: flex; }
+            .justify-between { justify-content: space-between; }
+            
+            @media print {
+                body * { visibility: hidden !important; }
+                #pos-receipt-wrapper, #pos-receipt-wrapper * { visibility: visible !important; }
+                #pos-receipt-wrapper {
+                    position: absolute;
+                    left: 0;
+                    top: 0;
+                    width: 100%;
+                }
+                @page { margin: 0; }
+            }
+        </style>
+
+        <div class="text-center font-bold text-sm uppercase">{{ header.name }}</div>
+        <div class="text-center text-xs">{{ header.address }}</div>
+        <div class="text-center text-xs">{{ header.phone }}</div>
+        <div class="border-b-dashed"></div>
+        <div class="text-center font-bold text-xs uppercase">{{ title }}</div>
+        <div class="border-b-dashed"></div>
+        
+        <div class="text-xs">
+            {% for label, val in meta %}
+            <div><span>{{ label }}: </span><span class="font-bold">{{ val }}</span></div>
+            {% endfor %}
+        </div>
+        
+        <div class="border-b-dashed"></div>
+        
+        <table class="receipt-table text-xs">
+            <thead>
+                <tr>
+                    <th>ITEM</th>
+                    <th class="text-right">AMT</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for item in items %}
+                <tr>
+                    <td>
+                        <div>{{ item.name }}</div>
+                        <div class="text-xs">{{ item.qty }} x {{ item.price }}</div>
+                    </td>
+                    <td class="text-right">{{ item.subtotal }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        
+        <div class="border-b-dashed"></div>
+        
+        <div class="text-xs space-y-1">
+            {% for label, val, is_bold in totals %}
+            <div class="flex justify-between {{ 'font-bold' if is_bold else '' }}">
+                <span>{{ label }}:</span>
+                <span>{{ val }}</span>
+            </div>
+            {% endfor %}
+        </div>
+        
+        <div class="border-b-dashed"></div>
+        <div class="text-xs"><span>Payment: </span><span class="font-bold">{{ payment }}</span></div>
+        <div class="border-b-dashed"></div>
+        <div class="text-center text-xs italic py-2">{{ footer }}</div>
+    </div>
+</div>
+{% endmacro %}

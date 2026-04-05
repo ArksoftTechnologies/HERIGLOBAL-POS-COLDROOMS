@@ -81,7 +81,7 @@
                         {% for item in items %}
                         {% set needed = item[0].reorder_level * 2 - item[1].quantity %}
                         {% if needed > 0 %}
-                        {% set ns.value = ns.value + (needed * item[0].cost_price) %}
+                        {% set ns.value = ns.value + (needed * item[0].cost_price|float) %}
                         {% endif %}
                         {% endfor %}
                         ₦{{ "{:,.0f}".format(ns.value) }}

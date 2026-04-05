@@ -103,7 +103,7 @@
                                 {% endif %}
                         </td>
                         <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium text-gray-900">
-                            ₦{{ "{:,.2f}".format(item.product.cost_price * item.quantity) }}
+                            ₦{{ "{:,.2f}".format(item.product.cost_price|float * item.quantity) }}
                         </td>
                     </tr>
                     {% else %}

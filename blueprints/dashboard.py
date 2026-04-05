@@ -80,9 +80,11 @@ def super_admin():
     ).scalar() or 0
     
     # Outstanding Remittances
-    total_collections = db.session.query(func.sum(CashCollection.amount)).scalar() or 0
+    total_collections = db.session.query(func.sum(CashCollection.amount)).filter_by(is_reversal=False).scalar() or 0
+    total_collections_rev = db.session.query(func.sum(CashCollection.amount)).filter_by(is_reversal=True).scalar() or 0
     total_remittances = db.session.query(func.sum(Remittance.amount)).scalar() or 0
-    outstanding_remittances = total_collections - total_remittances
+    total_approved_expenses = db.session.query(func.sum(Expense.amount)).filter(Expense.status != 'rejected').scalar() or 0
+    outstanding_remittances = max(0, (total_collections - total_collections_rev) - (total_remittances + total_approved_expenses))
     
     # Recent Sales (last 10)
     recent_sales = Sale.query.filter_by(status='completed').order_by(
@@ -403,14 +405,21 @@ def sales_rep():
     
     # My Outstanding Remittances
     my_collections = db.session.query(func.sum(CashCollection.amount)).filter_by(
-        sales_rep_id=user_id
+        sales_rep_id=user_id, is_reversal=False
+    ).scalar() or 0
+    my_collections_rev = db.session.query(func.sum(CashCollection.amount)).filter_by(
+        sales_rep_id=user_id, is_reversal=True
     ).scalar() or 0
     
     my_remittances = db.session.query(func.sum(Remittance.amount)).filter_by(
         sales_rep_id=user_id
     ).scalar() or 0
     
-    my_outstanding = my_collections - my_remittances
+    my_approved_expenses = db.session.query(func.sum(Expense.amount)).filter(
+        Expense.recorded_by == user_id, Expense.status != 'rejected'
+    ).scalar() or 0
+    
+    my_outstanding = max(0, (my_collections - my_collections_rev) - (my_remittances + my_approved_expenses))
     
     # My Recent Sales (TODAY ONLY - FIXED)
     my_recent_sales = Sale.query.filter(

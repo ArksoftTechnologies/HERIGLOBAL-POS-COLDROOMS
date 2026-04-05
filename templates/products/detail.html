@@ -144,13 +144,13 @@
                     <div class="flex-1">
                         <div class="text-sm text-gray-500">Inventory Value (Cost)</div>
                         <div class="text-xl font-semibold text-gray-900">₦{{ "{:,.2f}".format(warehouse_stock *
-                            product.cost_price) }}</div>
+                            product.cost_price|float) }}</div>
                     </div>
 
                     <div class="flex-1 hidden sm:block">
                         <div class="text-sm text-gray-500">Potential Revenue</div>
                         <div class="text-xl font-semibold text-gray-700">₦{{ "{:,.2f}".format(warehouse_stock *
-                            product.selling_price) }}</div>
+                            product.selling_price|float) }}</div>
                     </div>
                 </div>
             </div>

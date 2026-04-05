@@ -41,80 +41,105 @@
         <table class="min-w-full divide-y divide-gray-200">
             <thead class="bg-gray-50">
                 <tr>
-                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Sale #
-                    </th>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Sale #</th>
                     <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
-                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Customer
-                    </th>
-                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Outlet
-                    </th>
-                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Total
-                    </th>
-                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Payment
-                    </th>
-                    <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Actions
-                    </th>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Customer</th>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Outlet</th>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Items Bought</th>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Total</th>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Payment</th>
+                    <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
                 </tr>
             </thead>
             <tbody class="bg-white divide-y divide-gray-200">
                 {% for sale in sales.items %}
-                <tr>
-                    <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{{ sale.sale_number }}
-                    </td>
-                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{{ sale.sale_date.strftime('%Y-%m-%d
-                        %H:%M') }}</td>
+                <tr class="hover:bg-gray-50 transition-colors">
+                    <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{{ sale.sale_number }}</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{{ sale.sale_date.strftime('%Y-%m-%d %H:%M') }}</td>
                     <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                         {{ sale.customer.first_name }} {{ sale.customer.last_name }}
                         {% if sale.customer.is_walk_in %}<span class="text-xs text-gray-400">(Walk-in)</span>{% endif %}
                     </td>
                     <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{{ sale.outlet.code }}</td>
-                    <td class="px-6 py-4 whitespace-nowrap text-sm font-bold text-gray-900">₦{{
-                        "{:,.2f}".format(sale.total_amount) }}</td>
+                    <td class="px-6 py-4 text-sm text-gray-700">
+                        {% if sale.items %}
+                            <ul class="space-y-0.5">
+                            {% for item in sale.items %}
+                                <li class="flex items-center gap-1">
+                                    <span class="font-medium text-gray-900">{{ item.product.name if item.product else 'Unknown Item' }}</span>
+                                    <span class="text-xs text-gray-400">&times;</span>
+                                    <span class="inline-flex items-center px-1.5 py-0.5 rounded text-xs font-semibold bg-blue-50 text-blue-700">{{ item.quantity|int }}</span>
+                                </li>
+                            {% endfor %}
+                            </ul>
+                        {% else %}
+                            <span class="text-gray-400 italic text-xs">No items</span>
+                        {% endif %}
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm font-bold text-gray-900">₦{{ "{:,.2f}".format(sale.total_amount) }}</td>
                     <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                         {% if sale.is_split_payment %}
-                        <span
-                            class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-purple-100 text-purple-800">Split</span>
+                        <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-purple-100 text-purple-800">Split</span>
                         {% else %}
-                        <span
-                            class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-gray-100 text-gray-800">{{
-                            sale.payment_mode.name }}</span>
+                        <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-gray-100 text-gray-800">{{ sale.payment_mode.name if sale.payment_mode else 'N/A' }}</span>
                         {% endif %}
                     </td>
                     <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                        <a href="{{ url_for('sales.detail', id=sale.id) }}"
-                            class="text-primary hover:text-indigo-900">View</a>
+                        <a href="{{ url_for('sales.detail', id=sale.id) }}" class="text-primary hover:text-indigo-900">View</a>
                     </td>
                 </tr>
                 {% else %}
                 <tr>
-                    <td colspan="7" class="px-6 py-10 text-center text-gray-500">No sales found.</td>
+                    <td colspan="8" class="px-6 py-10 text-center text-gray-500">No sales found.</td>
                 </tr>
                 {% endfor %}
             </tbody>
         </table>
 
         <!-- Pagination -->
-        {% if sales.pages > 1 %}
-        <div class="bg-white px-4 py-3 border-t border-gray-200 flex items-center justify-between sm:px-6">
-            <div class="flex-1 flex justify-between sm:hidden">
-                <a href="{{ url_for('sales.index', page=sales.prev_num) }}"
-                    class="relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50">Previous</a>
-                <a href="{{ url_for('sales.index', page=sales.next_num) }}"
-                    class="relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50">Next</a>
-            </div>
-            <div class="hidden sm:flex-1 sm:flex sm:items-center sm:justify-between">
-                <div>
-                    <p class="text-sm text-gray-700">
-                        Showing <span class="font-medium">{{ sales.first }}</span> to <span class="font-medium">{{
-                            sales.last }}</span> of <span class="font-medium">{{ sales.total }}</span> results
-                    </p>
-                </div>
-                <div>
-                    <!-- Pagination Links can be added here -->
-                </div>
-            </div>
+        <div class="bg-white px-4 py-3 border-t border-gray-200 flex flex-col sm:flex-row items-center justify-between gap-3 sm:px-6">
+            <p class="text-sm text-gray-700">
+                Showing <span class="font-medium">{{ sales.first or 0 }}</span> to
+                <span class="font-medium">{{ sales.last or 0 }}</span> of
+                <span class="font-medium">{{ sales.total }}</span> result{{ 's' if sales.total != 1 else '' }}
+            </p>
+            <nav class="inline-flex rounded-md shadow-sm -space-x-px" aria-label="Pagination">
+                {% if sales.has_prev %}
+                <a href="{{ url_for('sales.index', page=sales.prev_num, search=request.args.get('search',''), date_from=request.args.get('date_from',''), date_to=request.args.get('date_to','')) }}"
+                    class="relative inline-flex items-center px-3 py-2 rounded-l-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50">
+                    <i data-lucide="chevron-left" class="w-4 h-4 mr-1"></i> Previous
+                </a>
+                {% else %}
+                <span class="relative inline-flex items-center px-3 py-2 rounded-l-md border border-gray-200 bg-gray-50 text-sm font-medium text-gray-300 cursor-not-allowed">
+                    <i data-lucide="chevron-left" class="w-4 h-4 mr-1"></i> Previous
+                </span>
+                {% endif %}
+
+                {% for p in sales.iter_pages(left_edge=1, right_edge=1, left_current=2, right_current=2) %}
+                    {% if p %}
+                        {% if p == sales.page %}
+                        <span class="relative inline-flex items-center px-4 py-2 border border-blue-500 bg-blue-50 text-sm font-medium text-blue-600">{{ p }}</span>
+                        {% else %}
+                        <a href="{{ url_for('sales.index', page=p, search=request.args.get('search',''), date_from=request.args.get('date_from',''), date_to=request.args.get('date_to','')) }}"
+                            class="relative inline-flex items-center px-4 py-2 border border-gray-300 bg-white text-sm font-medium text-gray-700 hover:bg-gray-50">{{ p }}</a>
+                        {% endif %}
+                    {% else %}
+                    <span class="relative inline-flex items-center px-4 py-2 border border-gray-300 bg-white text-sm font-medium text-gray-700">...</span>
+                    {% endif %}
+                {% endfor %}
+
+                {% if sales.has_next %}
+                <a href="{{ url_for('sales.index', page=sales.next_num, search=request.args.get('search',''), date_from=request.args.get('date_from',''), date_to=request.args.get('date_to','')) }}"
+                    class="relative inline-flex items-center px-3 py-2 rounded-r-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50">
+                    Next <i data-lucide="chevron-right" class="w-4 h-4 ml-1"></i>
+                </a>
+                {% else %}
+                <span class="relative inline-flex items-center px-3 py-2 rounded-r-md border border-gray-200 bg-gray-50 text-sm font-medium text-gray-300 cursor-not-allowed">
+                    Next <i data-lucide="chevron-right" class="w-4 h-4 ml-1"></i>
+                </span>
+                {% endif %}
+            </nav>
         </div>
-        {% endif %}
     </div>
 </div>
 {% endblock %}

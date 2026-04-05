@@ -195,7 +195,7 @@
         <!-- Shortcuts -->
         <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
             <h3 class="font-semibold text-gray-800 mb-4">Quick Actions</h3>
-            <div class="grid grid-cols-2 gap-4">
+            <div class="grid grid-cols-2 md:grid-cols-3 gap-4">
                 <a href="{{ url_for('inventory.outlets') }}"
                     class="p-4 bg-gray-50 rounded-lg hover:bg-indigo-50 hover:text-primary transition flex flex-col items-center justify-center text-center">
                     <i data-lucide="package" class="w-6 h-6 mb-2 text-gray-400"></i>
@@ -219,6 +219,16 @@
                     class="p-4 bg-gray-50 rounded-lg hover:bg-indigo-50 hover:text-primary transition flex flex-col items-center justify-center text-center">
                     <i data-lucide="receipt" class="w-6 h-6 mb-2 text-gray-400"></i>
                     <span class="text-xs font-medium text-gray-700">Add Expense</span>
+                </a>
+                <a href="{{ url_for('reports.daily_balance_sheet') }}"
+                    class="p-4 bg-indigo-50 rounded-lg shadow-sm border border-indigo-100 hover:bg-indigo-100 hover:text-primary transition flex flex-col items-center justify-center text-center">
+                    <i data-lucide="calculator" class="w-6 h-6 mb-2 text-indigo-500"></i>
+                    <span class="text-xs font-bold text-indigo-800">Balance Sheet</span>
+                </a>
+                <a href="{{ url_for('reports.index') }}"
+                    class="p-4 bg-gray-50 rounded-lg hover:bg-gray-100 hover:text-primary transition flex flex-col items-center justify-center text-center">
+                    <i data-lucide="pie-chart" class="w-6 h-6 mb-2 text-gray-400"></i>
+                    <span class="text-xs font-medium text-gray-700">All Reports</span>
                 </a>
             </div>
         </div>

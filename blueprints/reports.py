@@ -2,7 +2,7 @@ from datetime import datetime, timedelta
 from flask import Blueprint, render_template, request, jsonify, current_app, make_response
 from flask_login import login_required, current_user
 from sqlalchemy import func, case, extract, desc, and_
-from models import db, User, Outlet, Product, Category, Sale, SaleItem, PaymentMode, Inventory, InventoryAdjustment, StockTransfer, Return, ReturnItem, Customer
+from models import db, User, Outlet, Product, Category, Sale, SaleItem, SalePayment, PaymentMode, Inventory, InventoryAdjustment, StockTransfer, Return, ReturnItem, Customer, Expense, Remittance, CashCollection
 from utils.decorators import role_required
 
 reports_bp = Blueprint('reports', __name__, url_prefix='/reports')
@@ -33,7 +33,7 @@ def get_date_range():
 
 @reports_bp.route('/')
 @login_required
-@role_required(['super_admin', 'general_manager', 'outlet_admin', 'accountant'])
+@role_required(['super_admin', 'general_manager', 'outlet_admin', 'accountant', 'sales_rep'])
 def index():
     """Reports Dashboard"""
     return render_template('reports/index.html')
@@ -213,20 +213,19 @@ def sales_detailed():
 
 @reports_bp.route('/inventory/balance-sheet')
 @login_required
-@role_required(['super_admin', 'general_manager', 'outlet_admin', 'accountant'])
+@role_required(['super_admin', 'general_manager', 'outlet_admin', 'accountant', 'sales_rep'])
 def inventory_balance_sheet():
     """Inventory Balance Sheet"""
     date_from, date_to = get_date_range()
     outlet_id = request.args.get('outlet_id', type=int)
     
     # Default to first outlet if None and admin
-    if not outlet_id:
-        if current_user.role == 'outlet_admin':
-            outlet_id = current_user.outlet_id
-        else:
-            first_outlet = Outlet.query.first()
-            if first_outlet:
-                outlet_id = first_outlet.id
+    if current_user.role in ['outlet_admin', 'sales_rep']:
+        outlet_id = current_user.outlet_id
+    elif not outlet_id:
+        first_outlet = Outlet.query.first()
+        if first_outlet:
+            outlet_id = first_outlet.id
     
     if not outlet_id:
         return render_template('reports/inventory_balance_sheet_empty.html', message="Please select an outlet")
@@ -769,13 +768,14 @@ def stock_receive():
 # ─────────────────────────────────────────────────────────────────────────────
 @reports_bp.route('/products/sold')
 @login_required
-@role_required(['super_admin', 'general_manager', 'outlet_admin', 'accountant'])
+@role_required(['super_admin', 'general_manager', 'outlet_admin', 'accountant', 'sales_rep'])
 def products_sold():
     """Report: Summary of products sold within a date range (per outlet)."""
     date_from, date_to = get_date_range()
     outlet_id = request.args.get('outlet_id', type=int)
+    sales_rep_id = request.args.get('sales_rep_id', type=int)
 
-    if current_user.role == 'outlet_admin':
+    if current_user.role in ['outlet_admin', 'sales_rep']:
         outlet_id = current_user.outlet_id
 
     query = db.session.query(
@@ -799,6 +799,9 @@ def products_sold():
     if outlet_id:
         query = query.filter(Sale.outlet_id == outlet_id)
 
+    if sales_rep_id:
+        query = query.filter(Sale.sales_rep_id == sales_rep_id)
+
     rows = query.group_by(Product.id).order_by(func.sum(SaleItem.subtotal).desc()).all()
 
     grand_qty = sum(r.qty_sold for r in rows)
@@ -810,6 +813,11 @@ def products_sold():
 
     selected_outlet = Outlet.query.get(outlet_id) if outlet_id else None
 
+    # Fetch sales reps for filtering
+    sales_reps = User.query.filter_by(role='sales_rep').all()
+    if current_user.role in ['outlet_admin', 'sales_rep']:
+        sales_reps = [u for u in sales_reps if u.outlet_id == current_user.outlet_id]
+
     if request.args.get('format') == 'pdf':
         response = make_response(render_template('reports/pdf/products_sold.html',
                            rows=rows,
@@ -817,8 +825,10 @@ def products_sold():
                            grand_revenue=grand_revenue,
                            grand_tx=grand_tx,
                            outlets=outlets,
+                           sales_reps=sales_reps,
                            selected_outlet=selected_outlet,
                            outlet_id=outlet_id,
+                           sales_rep_id=sales_rep_id,
                            date_from=date_from,
                            date_to=date_to,
                            app_name=current_app.config.get('APP_NAME', 'Point of Sale'),
@@ -834,8 +844,10 @@ def products_sold():
                            grand_revenue=grand_revenue,
                            grand_tx=grand_tx,
                            outlets=outlets,
+                           sales_reps=sales_reps,
                            selected_outlet=selected_outlet,
                            outlet_id=outlet_id,
+                           sales_rep_id=sales_rep_id,
                            date_from=date_from,
                            date_to=date_to)
 
@@ -930,4 +942,156 @@ def sales_by_outlet():
                            outlet_id=outlet_id,
                            date_from=date_from,
                            date_to=date_to)
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# NEW REPORT 4: Daily Balance Sheet
+# ─────────────────────────────────────────────────────────────────────────────
+@reports_bp.route('/sales/daily-balance-sheet')
+@login_required
+@role_required(['super_admin', 'general_manager', 'outlet_admin', 'accountant', 'sales_rep'])
+def daily_balance_sheet():
+    """Report: Calculate daily balance leftover for easy accounting."""
+    date_from, date_to = get_date_range()
+    # For a *daily* report, we usually care about a single day.
+    # We will use date_from as "The Date" if user selects only one, or process the range if needed.
+    # To keep the logic simple corresponding to "Today", we will force date_to = date_from (or just use date_from).
+    selected_date_str = request.args.get('date_from')
+    target_date = date_from if selected_date_str else datetime.now().date()
+    # Reset date_to so ui matches target
+    date_from = target_date
+    date_to = target_date
+
+    outlet_id = request.args.get('outlet_id', type=int)
+    sales_rep_id = request.args.get('sales_rep_id', type=int)
+
+    if current_user.role in ['outlet_admin', 'sales_rep']:
+        outlet_id = current_user.outlet_id
+    if current_user.role == 'sales_rep':
+        sales_rep_id = current_user.id
+
+    if not sales_rep_id and current_user.role not in ['sales_rep']:
+        # If admin doesn't select a rep, show a placeholder or force them to pick one.
+        # It's a reps' balance sheet. Let's redirect if none picked, or give empty state.
+        pass
+
+    report_data = []
+
+    # Prepare user lists for dropdowns
+    outlets = Outlet.query.filter_by(is_active=True).order_by(Outlet.name).all() \
+        if current_user.role in ['super_admin', 'general_manager', 'accountant'] else []
+        
+    sales_reps = User.query.filter_by(role='sales_rep').all()
+    if current_user.role == 'outlet_admin':
+        sales_reps = [u for u in sales_reps if u.outlet_id == current_user.outlet_id]
+        
+    if sales_rep_id:
+        target_reps = [User.query.get(sales_rep_id)]
+    elif current_user.role in ['outlet_admin', 'super_admin', 'general_manager', 'accountant']:
+        # Admin didn't pick: optionally compute for all reps in selected outlet, or just demand selection.
+        # Demanding selection is safer and cleaner for detailed views.
+        if outlet_id:
+            target_reps = [u for u in sales_reps if u.outlet_id == outlet_id]
+        else:
+            target_reps = []
+    else:
+        target_reps = []
+
+    for rep in target_reps:
+        if not rep:
+            continue
+            
+        # 1. Total Collections up to yesterday (Exclude today)
+        total_col_past = db.session.query(func.sum(CashCollection.amount))\
+            .filter(CashCollection.sales_rep_id == rep.id, CashCollection.is_reversal == False, CashCollection.collection_date < target_date)\
+            .scalar() or 0
+        total_col_rev_past = db.session.query(func.sum(CashCollection.amount))\
+            .filter(CashCollection.sales_rep_id == rep.id, CashCollection.is_reversal == True, CashCollection.collection_date < target_date)\
+            .scalar() or 0
+            
+        # 2. Total Remittances + Expenses up to yesterday
+        total_rem_past = db.session.query(func.sum(Remittance.amount))\
+            .filter(Remittance.sales_rep_id == rep.id, Remittance.remittance_date < target_date)\
+            .scalar() or 0
+        total_exp_past = db.session.query(func.sum(Expense.amount))\
+            .filter(Expense.recorded_by == rep.id, Expense.expense_date < target_date, Expense.status != 'rejected')\
+            .scalar() or 0
+            
+        yesterday_outstanding = max(0, (total_col_past - total_col_rev_past) - (total_rem_past + total_exp_past))
+        
+        # 3. Today's Collections (split into actual sales and repayments)
+        today_collections = CashCollection.query.filter(
+            CashCollection.sales_rep_id == rep.id,
+            CashCollection.collection_date == target_date,
+            CashCollection.is_reversal == False
+        ).all()
+        
+        today_sales_revenue = sum(c.amount for c in today_collections if c.source_type == 'sale')
+        today_repayments = sum(c.amount for c in today_collections if c.source_type == 'repayment')
+        today_other_in = sum(c.amount for c in today_collections if c.source_type not in ['sale', 'repayment'])
+        
+        # 4. Today's Expenses and Remittances
+        today_exp = db.session.query(func.sum(Expense.amount))\
+            .filter(Expense.recorded_by == rep.id, Expense.expense_date == target_date, Expense.status != 'rejected')\
+            .scalar() or 0
+            
+        today_rem = db.session.query(func.sum(Remittance.amount))\
+            .filter(Remittance.sales_rep_id == rep.id, Remittance.remittance_date == target_date)\
+            .scalar() or 0
+            
+        # Leftover matching the prompt: non-credit sales + repayment + yesterday - today expenses - today remittance
+        leftover = yesterday_outstanding + today_sales_revenue + today_repayments + today_other_in - today_exp - today_rem
+        
+        report_data.append({
+            'sales_rep': rep,
+            'yesterday_outstanding': yesterday_outstanding,
+            'today_sales': today_sales_revenue,
+            'today_repayments': today_repayments,
+            'today_other_in': today_other_in,
+            'today_exp': today_exp,
+            'today_rem': today_rem,
+            'leftover': leftover
+        })
+
+    selected_outlet = Outlet.query.get(outlet_id) if outlet_id else None
+
+    cumulative_data = None
+    if report_data and current_user.role != 'sales_rep' and len(report_data) >= 1:
+        cumulative_data = {
+            'yesterday_outstanding': sum(r['yesterday_outstanding'] for r in report_data),
+            'today_sales': sum(r['today_sales'] for r in report_data),
+            'today_repayments': sum(r['today_repayments'] for r in report_data),
+            'today_other_in': sum(r['today_other_in'] for r in report_data),
+            'today_exp': sum(r['today_exp'] for r in report_data),
+            'today_rem': sum(r['today_rem'] for r in report_data),
+            'leftover': sum(r['leftover'] for r in report_data),
+            'outlet_name': selected_outlet.name if selected_outlet else 'All Outlets'
+        }
+
+    if request.args.get('format') == 'pdf':
+        response = make_response(render_template('reports/pdf/daily_balance_sheet.html',
+                           report_data=report_data,
+                           cumulative_data=cumulative_data,
+                           outlets=outlets,
+                           sales_reps=sales_reps,
+                           selected_outlet=selected_outlet,
+                           outlet_id=outlet_id,
+                           sales_rep_id=sales_rep_id,
+                           target_date=target_date,
+                           app_name=current_app.config.get('APP_NAME', 'Point of Sale'),
+                           company_name=current_app.config.get('COMPANY_NAME', 'POS System'),
+                           generated_by=current_user.full_name,
+                           generated_at=datetime.now()))
+        response.headers['Content-Type'] = 'text/html'
+        return response
+
+    return render_template('reports/daily_balance_sheet.html',
+                           report_data=report_data,
+                           cumulative_data=cumulative_data,
+                           outlets=outlets,
+                           sales_reps=sales_reps,
+                           selected_outlet=selected_outlet,
+                           outlet_id=outlet_id,
+                           sales_rep_id=sales_rep_id,
+                           target_date=target_date)
 

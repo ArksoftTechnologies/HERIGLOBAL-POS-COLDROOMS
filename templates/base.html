@@ -358,6 +358,10 @@
                 class="flex items-center px-4 py-2.5 text-gray-300 hover:bg-gray-700 hover:text-white rounded-lg transition-colors {{ 'bg-primary/90 text-white shadow-md' if 'remittance' in request.endpoint else '' }}">
                 <i data-lucide="wallet" class="w-5 h-5 mr-3"></i> Remittance
             </a>
+            <a href="{{ url_for('expenses.index') }}"
+                class="flex items-center px-4 py-2.5 text-gray-300 hover:bg-gray-700 hover:text-white rounded-lg transition-colors {{ 'bg-primary/90 text-white shadow-md' if 'expenses' in request.endpoint else '' }}">
+                <i data-lucide="receipt" class="w-5 h-5 mr-3"></i> My Expenses
+            </a>
 
             {% elif current_user.role == 'accountant' %}
             <div class="pt-4 pb-2 px-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">Finance</div>
@@ -423,7 +427,7 @@
                     <!-- Dropdown Menu -->
                     <div id="user-menu-dropdown"
                         class="absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-lg py-1 border border-gray-100 hidden opacity-0 scale-95 transition-all duration-200 origin-top-right z-50">
-                        <a href="#" class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 hover:text-primary">
+                        <a href="{{ url_for('users.profile') }}" class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 hover:text-primary">
                             <i data-lucide="user" class="w-4 h-4 inline-block mr-2"></i> Profile
                         </a>
                         <div class="border-t border-gray-100 my-1"></div>
@@ -521,24 +525,32 @@
         };
 
         // Page Loader Logic
-        document.addEventListener('DOMContentLoaded', () => {
-            const loader = document.getElementById('page-loader');
-            // Show loader on navigation
-            document.querySelectorAll('a').forEach(link => {
-                link.addEventListener('click', (e) => {
-                    const href = link.getAttribute('href');
-                    const target = link.getAttribute('target');
-                    if (href && href.startsWith('/') && !href.startsWith('#') && target !== '_blank' && !e.ctrlKey && !e.metaKey) {
+        // Always hide when the current page has loaded
+        function hidePageLoader() {
+            var loader = document.getElementById('page-loader');
+            if (loader) loader.classList.add('hidden');
+        }
+        // Fired on every page load (fresh navigation + BFCache restore)
+        window.addEventListener('load', hidePageLoader);
+        window.addEventListener('pageshow', hidePageLoader);
+
+        document.addEventListener('DOMContentLoaded', function () {
+            var loader = document.getElementById('page-loader');
+            // Show loader when navigating to another page
+            document.querySelectorAll('a').forEach(function (link) {
+                link.addEventListener('click', function (e) {
+                    var href   = link.getAttribute('href');
+                    var target = link.getAttribute('target');
+                    var onclick = link.getAttribute('onclick') || '';
+                    // Skip: not an internal link, opens new tab, Ctrl/Cmd+click, or triggers print
+                    if (href && href.startsWith('/') && !href.startsWith('#') &&
+                        target !== '_blank' && !e.ctrlKey && !e.metaKey &&
+                        !onclick.includes('print')) {
                         loader.classList.remove('hidden');
+                        // Safety: auto-hide after 10s if navigation stalls or is a download
+                        setTimeout(function () { loader.classList.add('hidden'); }, 10000);
                     }
                 });
-            });
-
-            // Hide loader on back/forward cache restore
-            window.addEventListener('pageshow', (event) => {
-                if (event.persisted) {
-                    loader.classList.add('hidden');
-                }
             });
         });
     </script>
