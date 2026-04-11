@@ -57,8 +57,9 @@
                     <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{{ sale.sale_number }}</td>
                     <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{{ sale.sale_date.strftime('%Y-%m-%d %H:%M') }}</td>
                     <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                        {{ sale.customer.first_name }} {{ sale.customer.last_name }}
-                        {% if sale.customer.is_walk_in %}<span class="text-xs text-gray-400">(Walk-in)</span>{% endif %}
+                        {{ sale.customer_display_name }}
+                        {% if sale.customer and sale.customer.is_walk_in %}<span class="text-xs text-gray-400">(Walk-in)</span>{% endif %}
+                        {% if not sale.is_registered_customer %}<span class="text-xs text-amber-600">(Non-registered)</span>{% endif %}
                     </td>
                     <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{{ sale.outlet.code }}</td>
                     <td class="px-6 py-4 text-sm text-gray-700">

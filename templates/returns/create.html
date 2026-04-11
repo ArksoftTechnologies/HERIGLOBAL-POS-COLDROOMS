@@ -52,8 +52,10 @@
                         <p class="text-sm text-gray-500">{{ sale.sale_date.strftime('%Y-%m-%d %H:%M') }}</p>
                     </div>
                     <div class="text-right">
-                        <p class="font-semibold">{{ sale.customer.name }}</p>
+                        <p class="font-semibold">{{ sale.customer_display_name }}</p>
+                        {% if sale.customer and sale.customer.phone %}
                         <p class="text-sm text-gray-500">{{ sale.customer.phone }}</p>
+                        {% endif %}
                     </div>
                 </div>
             </div>
@@ -188,8 +190,12 @@
                     <!-- Credit warning -->
                     <div x-show="refundMethod === 'credit_adjustment'"
                         class="mt-2 text-xs text-blue-600 bg-blue-50 p-2 rounded">
+                        {% if sale.customer and sale.customer.current_balance is defined %}
                         Refund will reduce customer's outstanding balance. Available Balance: ₦{{
-                        "%.2f"|format(sale.customer.current_balance) }}
+                        "{:.2f}".format(sale.customer.current_balance) }}
+                        {% else %}
+                        Credit adjustment not available for non-registered customers.
+                        {% endif %}
                     </div>
                 </div>
 
@@ -258,26 +264,26 @@
                         },
                         body: JSON.stringify({
                             sale_id: {{ sale.id if sale else 'null' }},
-                        return_items: Object.values(this.cart),
-                        refund_method: this.refundMethod,
-                        notes: this.notes
+                            return_items: Object.values(this.cart),
+                            refund_method: this.refundMethod,
+                            notes: this.notes
                         })
-            });
+                    });
 
-            const result = await response.json();
+                    const result = await response.json();
 
-            if(result.success) {
-            window.location.href = result.redirect;
-        } else {
-            alert(result.error || 'Failed to process return');
-            this.processing = false;
-        }
-    } catch (error) {
-        console.error('Error:', error);
-        alert('An error occurred while processing the return.');
-        this.processing = false;
-    }
-    }
+                    if (result.success) {
+                        window.location.href = result.redirect;
+                    } else {
+                        alert(result.error || 'Failed to process return');
+                        this.processing = false;
+                    }
+                } catch (error) {
+                    console.error('Error:', error);
+                    alert('An error occurred while processing the return.');
+                    this.processing = false;
+                }
+            }
         }
     }
 </script>

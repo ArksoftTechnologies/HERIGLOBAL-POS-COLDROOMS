@@ -286,15 +286,31 @@
                         <p class="text-xs text-indigo-600 truncate"
                             x-text="'Limit: ₦' + formatMoney(selectedCustomer?.credit_limit || 0)"></p>
                     </div>
-                    <button @click="selectedCustomer = null"
+                    <button @click="clearCustomerSelection()"
                         class="text-indigo-400 hover:text-indigo-700 flex-shrink-0">
                         <i data-lucide="x" class="w-4 h-4"></i>
                     </button>
                 </div>
-                <button x-show="!selectedCustomer" @click="selectWalkIn()"
+                <button x-show="!selectedCustomer && !nonRegisteredCustomerName" @click="selectWalkIn()"
                     class="text-sm text-indigo-600 hover:underline font-medium">
                     Use Walk-In Customer
                 </button>
+            </div>
+
+            <!-- Non-registered customer name input -->
+            <div x-show="!selectedCustomer" class="space-y-2">
+                <div class="relative">
+                    <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                        <i data-lucide="user-plus" class="w-4 h-4 text-gray-400"></i>
+                    </div>
+                    <input type="text" x-model="nonRegisteredCustomerName" 
+                        placeholder="Or enter customer name for quick checkout..."
+                        class="w-full pl-9 pr-4 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500">
+                </div>
+                <div x-show="nonRegisteredCustomerName" class="flex items-center gap-2 text-xs text-amber-600 bg-amber-50 px-3 py-2 rounded-lg border border-amber-200">
+                    <i data-lucide="info" class="w-3 h-3 flex-shrink-0"></i>
+                    <span>Non-registered customer - Credit payments not available</span>
+                </div>
             </div>
 
             <!-- Product quick-search -->
@@ -493,11 +509,12 @@
                     {% for mode in payment_modes %}
                     <button
                         @click="setPaymentMode('{{ mode.id }}', '{{ mode.code }}', {{ 'true' if mode.requires_reference else 'false' }}, {{ 'true' if mode.is_credit else 'false' }})"
+                        :disabled="{% if mode.is_credit %}!selectedCustomer{% else %}false{% endif %}"
                         :class="selectedPaymentModeId == {{ mode.id }}
                             ? 'bg-indigo-600 text-white border-indigo-600'
-                            : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'"
+                            : {% if mode.is_credit %}'bg-white text-gray-700 border-gray-300 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed'{% else %}'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'{% endif %}"
                         class="py-2 px-3 border rounded-lg text-sm font-medium transition-colors truncate">
-                        {{ mode.name }}
+                        {{ mode.name }}{% if mode.is_credit %} *{% endif %}
                     </button>
                     {% endfor %}
                     <button @click="paymentType = 'split'; selectedPaymentModeId = null" :class="paymentType == 'split'
@@ -506,6 +523,9 @@
                         class="py-2 px-3 border rounded-lg text-sm font-medium transition-colors">
                         Split
                     </button>
+                </div>
+                <div x-show="!selectedCustomer && nonRegisteredCustomerName" class="text-xs text-gray-500">
+                    * Credit payments require registered customers
                 </div>
             </div>
 
@@ -572,6 +592,7 @@
             customerSearch: '',
             customerResults: [],
             selectedCustomer: null,
+            nonRegisteredCustomerName: '',
             productSearch: '',
             productResults: [],
             availableProducts: [],
@@ -632,11 +653,19 @@
             },
 
             get canCheckout() {
-                if (!this.cart.length || !this.selectedCustomer) return false;
+                if (!this.cart.length) return false;
+                
+                // Must have either a selected customer or non-registered customer name
+                if (!this.selectedCustomer && !this.nonRegisteredCustomerName.trim()) return false;
+                
                 if (this.paymentType === 'single') {
                     if (!this.selectedPaymentModeId) return false;
                     if (this.requiresReference && !this.transactionReference) return false;
-                    if (this.isCredit) {
+                    
+                    // Credit payments require registered customers
+                    if (this.isCredit && !this.selectedCustomer) return false;
+                    
+                    if (this.isCredit && this.selectedCustomer) {
                         const avail = (this.selectedCustomer.credit_limit || 0) - (this.selectedCustomer.current_balance || 0);
                         if (this.cartTotal > avail) return false;
                     }
@@ -671,8 +700,14 @@
 
             selectCustomer(c) {
                 this.selectedCustomer = c;
+                this.nonRegisteredCustomerName = ''; // Clear non-registered name when selecting a customer
                 this.customerSearch = '';
                 this.customerResults = [];
+            },
+
+            clearCustomerSelection() {
+                this.selectedCustomer = null;
+                this.nonRegisteredCustomerName = '';
             },
 
             async selectWalkIn() {
@@ -803,7 +838,8 @@
                 if (!this.canCheckout) { alert('Please complete all required fields'); return; }
                 this.processing = true;
                 const payload = {
-                    customer_id: this.selectedCustomer.id,
+                    customer_id: this.selectedCustomer ? this.selectedCustomer.id : null,
+                    non_registered_customer_name: this.nonRegisteredCustomerName.trim() || null,
                     payment_type: this.paymentType,
                     payment_mode_id: this.paymentType === 'single' ? this.selectedPaymentModeId : null,
                     transaction_reference: this.paymentType === 'single' ? this.transactionReference : null,

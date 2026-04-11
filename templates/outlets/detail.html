@@ -255,7 +255,11 @@
                                         class="text-primary hover:underline">{{ sale.sale_number }}</a>
                                 </td>
                                 <td class="px-6 py-3 text-gray-700">
-                                    {{ sale.customer.first_name }} {{ sale.customer.last_name[:1] }}.
+                                    {% if sale.customer %}
+                                        {{ sale.customer.first_name }} {{ sale.customer.last_name[:1] if sale.customer.last_name else '' }}.
+                                    {% else %}
+                                        {{ sale.non_registered_customer_name or 'Unknown' }}
+                                    {% endif %}
                                 </td>
                                 <td class="px-6 py-3 text-gray-600">{{ sale.sales_rep.full_name }}</td>
                                 <td class="px-6 py-3 font-bold text-gray-900">₦{{ '{:,.0f}'.format(sale.total_amount) }}

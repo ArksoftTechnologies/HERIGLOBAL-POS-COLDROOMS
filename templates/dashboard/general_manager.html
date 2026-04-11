@@ -168,7 +168,7 @@
                 <tr class="hover:bg-gray-50 transition-colors">
                     <td class="px-6 py-4 font-mono text-xs text-indigo-600">{{ sale.sale_number }}</td>
                     <td class="px-6 py-4 font-medium text-gray-900">
-                        {{ sale.customer.first_name }} {{ sale.customer.last_name }}
+                        {{ sale.customer_display_name }}
                     </td>
                     <td class="px-6 py-4 text-gray-500">{{ sale.outlet.name }}</td>
                     <td class="px-6 py-4 text-gray-500">{{ sale.sale_date.strftime('%d %b %Y, %H:%M') }}</td>

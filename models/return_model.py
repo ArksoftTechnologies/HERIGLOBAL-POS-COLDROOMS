@@ -8,7 +8,7 @@ class Return(db.Model):
     return_number = db.Column(db.String(50), unique=True, nullable=False)
     sale_id = db.Column(db.Integer, db.ForeignKey('sales.id'), nullable=False)
     outlet_id = db.Column(db.Integer, db.ForeignKey('outlets.id'), nullable=False)
-    customer_id = db.Column(db.Integer, db.ForeignKey('customers.id'), nullable=False)
+    customer_id = db.Column(db.Integer, db.ForeignKey('customers.id'), nullable=True)
     processed_by = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
     return_date = db.Column(db.DateTime, default=datetime.utcnow)
     total_refund_amount = db.Column(db.Numeric(10, 2), nullable=False)
@@ -27,6 +27,15 @@ class Return(db.Model):
     approver = db.relationship('User', foreign_keys=[approved_by], backref='approved_returns')
     items = db.relationship('ReturnItem', backref='return_record', cascade='all, delete-orphan')
     payments = db.relationship('ReturnPayment', backref='return_record', cascade='all, delete-orphan')
+
+    @property
+    def customer_display_name(self):
+        """Get display name for customer (from original sale)"""
+        if self.sale:
+            return self.sale.customer_display_name
+        elif self.customer:
+            return f"{self.customer.first_name} {self.customer.last_name}"
+        return "Unknown Customer"
 
 class ReturnItem(db.Model):
     __tablename__ = 'return_items'

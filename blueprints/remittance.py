@@ -317,7 +317,8 @@ def record_remittance():
         total_col = db.session.query(func.sum(CashCollection.amount)).filter_by(sales_rep_id=current_user.id, is_reversal=False).scalar() or 0
         total_col_rev = db.session.query(func.sum(CashCollection.amount)).filter_by(sales_rep_id=current_user.id, is_reversal=True).scalar() or 0
         total_rem = db.session.query(func.sum(Remittance.amount)).filter_by(sales_rep_id=current_user.id).scalar() or 0
-        outstanding_balance = max(0, (total_col - total_col_rev) - total_rem)
+        total_exp = db.session.query(func.sum(Expense.amount)).filter(Expense.recorded_by == current_user.id, Expense.status != 'rejected').scalar() or 0
+        outstanding_balance = max(0, (total_col - total_col_rev) - (total_rem + total_exp))
 
     return render_template('remittance/record_remittance.html',
                            payment_modes=payment_modes,
@@ -473,6 +474,14 @@ def ledger():
         rem_query = rem_query.filter(Remittance.remittance_date <= date_to)
     remittances = rem_query.all()
     
+    # Fetch expenses
+    exp_query = Expense.query.filter(Expense.recorded_by == sales_rep_id, Expense.status != 'rejected')
+    if date_from:
+        exp_query = exp_query.filter(Expense.expense_date >= date_from)
+    if date_to:
+        exp_query = exp_query.filter(Expense.expense_date <= date_to)
+    expenses = exp_query.all()
+    
     # Combine and sort
     transactions = []
     for col in collections:
@@ -504,6 +513,16 @@ def ledger():
             'description': f"{rem.remittance_method} - {rem.transaction_reference}",
             'collection': 0,
             'remittance': float(rem.amount)
+        })
+        
+    for exp in expenses:
+        transactions.append({
+            'date': exp.expense_date,
+            'type': 'Expense',
+            'reference': f"EXP-{exp.id}",
+            'description': f"{exp.category} - {exp.description[:30]}",
+            'collection': 0,
+            'remittance': float(exp.amount)
         })
         
     transactions.sort(key=lambda x: x['date'])
@@ -554,7 +573,11 @@ def outstanding():
             db.session.query(func.sum(Remittance.amount))
             .filter_by(sales_rep_id=rep.id).scalar() or 0
         )
-        outstanding = max(0, net_collections - total_rem)
+        total_exp = (
+            db.session.query(func.sum(Expense.amount))
+            .filter(Expense.recorded_by == rep.id, Expense.status != 'rejected').scalar() or 0
+        )
+        outstanding = max(0, net_collections - (total_rem + total_exp))
         
         last_remittance = Remittance.query.filter_by(sales_rep_id=rep.id).order_by(Remittance.remittance_date.desc()).first()
         days_overdue = 0

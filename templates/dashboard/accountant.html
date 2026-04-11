@@ -96,7 +96,7 @@
                 {% for sale in pending_sales %}
                 <div class="flex items-center justify-between border-b border-gray-50 pb-4 last:border-0 last:pb-0">
                     <div>
-                        <p class="font-medium text-gray-900">{{ sale.customer.name if sale.customer else 'Walk-in' }} - {{ sale.outlet.name if sale.outlet else 'Unknown' }}</p>
+                        <p class="font-medium text-gray-900">{{ sale.customer_display_name }} - {{ sale.outlet.name if sale.outlet else 'Unknown' }}</p>
                         <p class="text-xs text-gray-500">Ref: {{ sale.receipt_number }} &bull; {{ sale.sale_date.strftime('%d %b, %H:%M') }}</p>
                     </div>
                     <div class="text-right">

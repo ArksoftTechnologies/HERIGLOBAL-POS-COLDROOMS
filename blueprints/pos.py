@@ -425,6 +425,7 @@ def generate_sale_number():
 def checkout():
     data = request.json
     customer_id = data.get('customer_id')
+    non_registered_customer_name = (data.get('non_registered_customer_name') or '').strip()
     payment_type = data.get('payment_type') # 'single' or 'split'
     payment_mode_id = data.get('payment_mode_id')
     split_payments = data.get('split_payments', [])
@@ -436,18 +437,32 @@ def checkout():
     if not cart:
         return jsonify({'error': 'Cart is empty'}), 400
 
-    if not customer_id:
-        return jsonify({'error': 'Customer is required'}), 400
-        
-    customer = Customer.query.get(customer_id)
-    if not customer or not customer.is_active:
-        return jsonify({'error': 'Invalid customer'}), 400
+    # Validate customer information - either registered customer or non-registered name
+    if not customer_id and not non_registered_customer_name:
+        return jsonify({'error': 'Please select a customer or enter a customer name'}), 400
+    
+    if customer_id and non_registered_customer_name:
+        return jsonify({'error': 'Please select either a registered customer or enter a name, not both'}), 400
 
-    # Outlet-scope enforcement: outlet_admin and sales_rep can only sell
-    # to their own outlet's customers (walk-in customers are always allowed)
-    if current_user.role not in POS_PLATFORM_WIDE_ROLES:
-        if not customer.is_walk_in and customer.primary_outlet_id != current_user.outlet_id:
-            return jsonify({'error': 'You can only sell to customers registered at your outlet.'}), 403
+    # Validate non-registered customer name format
+    if non_registered_customer_name:
+        if len(non_registered_customer_name) < 2:
+            return jsonify({'error': 'Customer name must be at least 2 characters'}), 400
+        if len(non_registered_customer_name) > 200:
+            return jsonify({'error': 'Customer name must be less than 200 characters'}), 400
+    
+    # Handle registered customer validation
+    customer = None
+    if customer_id:
+        customer = Customer.query.get(customer_id)
+        if not customer or not customer.is_active:
+            return jsonify({'error': 'Invalid customer'}), 400
+
+        # Outlet-scope enforcement: outlet_admin and sales_rep can only sell
+        # to their own outlet's customers (walk-in customers are always allowed)
+        if current_user.role not in POS_PLATFORM_WIDE_ROLES:
+            if not customer.is_walk_in and customer.primary_outlet_id != current_user.outlet_id:
+                return jsonify({'error': 'You can only sell to customers registered at your outlet.'}), 403
 
     cart_total = sum(item['subtotal'] for item in cart)
     
@@ -457,13 +472,17 @@ def checkout():
         if not mode or not mode.is_active:
             return jsonify({'error': 'Invalid payment mode'}), 400
         
-        if customer.is_walk_in and mode.is_credit:
+        # Credit sales require registered customers
+        if mode.is_credit and not customer_id:
+            return jsonify({'error': 'Credit sales require registered customers'}), 400
+        
+        if customer and customer.is_walk_in and mode.is_credit:
             return jsonify({'error': 'Walk-in customers cannot use Credit'}), 400
 
         if mode.requires_reference and not transaction_reference:
             return jsonify({'error': f'Reference required for {mode.name}'}), 400
             
-        if mode.is_credit:
+        if mode.is_credit and customer:
             available_credit = customer.credit_limit - customer.current_balance
             if cart_total > available_credit:
                 return jsonify({'error': f'Credit limit exceeded. Available: {available_credit}'}), 400
@@ -490,7 +509,8 @@ def checkout():
         sale = Sale(
             sale_number=sale_number,
             outlet_id=outlet_id,
-            customer_id=customer_id,
+            customer_id=customer_id,  # Will be None for non-registered customers
+            non_registered_customer_name=non_registered_customer_name if non_registered_customer_name else None,
             sales_rep_id=current_user.id,
             total_amount=cart_total,
             payment_mode_id=payment_mode_id if payment_type == 'single' else None,

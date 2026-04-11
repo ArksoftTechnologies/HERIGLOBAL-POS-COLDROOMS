@@ -8,7 +8,7 @@
     document.addEventListener('DOMContentLoaded', () => {
         const sizeSelector = document.getElementById('receipt-paper-size');
         const receiptContainer = document.getElementById('pos-receipt-container');
-        
+
         if (sizeSelector && receiptContainer) {
             sizeSelector.addEventListener('change', (e) => {
                 if (e.target.value === '58mm') {
@@ -23,44 +23,45 @@
 
 {# Render the hidden POS receipt structure #}
 {% set pos_header = {
-    'name': app_name,
-    'address': return_record.outlet.address,
-    'phone': return_record.outlet.phone or 'N/A'
+'name': app_name,
+'address': return_record.outlet.address,
+'phone': return_record.outlet.phone or 'N/A'
 } %}
 
 {% set pos_meta = [
     ('Return #', return_record.return_number),
     ('Date', return_record.return_date.strftime('%Y-%m-%d %H:%M')),
     ('Processor', return_record.processor.name if return_record.processor else 'System'),
-    ('Customer', return_record.customer.name if return_record.customer else 'Walk-in')
+    ('Customer', return_record.customer_display_name)
 ] %}
 
 {% set pos_items_list = [] %}
 {% for item in return_record.items %}
-    {% set qty_str = "{:g}".format(item.quantity_returned) if item.quantity_returned % 1 == 0 else "{:.3f}".format(item.quantity_returned) %}
-    {% set refund_str = '₦' ~ "{:,.2f}".format(item.refund_amount) %}
-    {% set pos_items_list = pos_items_list + [{
-        'name': item.product.name,
-        'qty': qty_str,
-        'price': 'Refund',
-        'subtotal': refund_str
-    }] %}
+{% set qty_str = "{:g}".format(item.quantity_returned) if item.quantity_returned % 1 == 0 else
+"{:.3f}".format(item.quantity_returned) %}
+{% set refund_str = '₦' ~ "{:,.2f}".format(item.refund_amount) %}
+{% set pos_items_list = pos_items_list + [{
+'name': item.product.name,
+'qty': qty_str,
+'price': 'Refund',
+'subtotal': refund_str
+}] %}
 {% endfor %}
 
 {% set pos_totals = [
-    ('TOTAL REFUND', '₦' ~ "{:,.2f}".format(return_record.total_refund_amount), True)
+('TOTAL REFUND', '₦' ~ "{:,.2f}".format(return_record.total_refund_amount), True)
 ] %}
 
 {% set pos_payment = return_record.refund_method|replace('_', ' ')|capitalize %}
 
 {{ render_pos_receipt(
-    'Return Receipt',
-    pos_header,
-    pos_meta,
-    pos_items_list,
-    pos_totals,
-    pos_payment,
-    'Thank you for your business!'
+'Return Receipt',
+pos_header,
+pos_meta,
+pos_items_list,
+pos_totals,
+pos_payment,
+'Thank you for your business!'
 ) }}
 {% endblock %}
 
@@ -72,7 +73,8 @@
             <p class="text-gray-600 mt-1">{{ return_record.return_number }}</p>
         </div>
         <div class="flex items-center space-x-3 print:hidden">
-            <select id="receipt-paper-size" class="text-xs border border-gray-300 rounded-lg p-2 focus:ring-indigo-500 focus:border-indigo-500 bg-white items-center">
+            <select id="receipt-paper-size"
+                class="text-xs border border-gray-300 rounded-lg p-2 focus:ring-indigo-500 focus:border-indigo-500 bg-white items-center">
                 <option value="80mm" selected>80mm (Standard)</option>
                 <option value="58mm">58mm (Small)</option>
             </select>
@@ -98,18 +100,24 @@
 
     <style>
         @media print {
+
             /* Hide UI elements */
-            .print\:hidden, aside, header, .no-print, button, a[href*="index"] {
+            .print\:hidden,
+            aside,
+            header,
+            .no-print,
+            button,
+            a[href*="index"] {
                 display: none !important;
             }
-            
+
             /* Receipt container setup */
-            body { 
-                background: white !important; 
-                margin: 0 !important; 
+            body {
+                background: white !important;
+                margin: 0 !important;
                 padding: 0 !important;
             }
-            
+
             #receipt-content {
                 width: 80mm !important;
                 margin: 0 auto !important;
@@ -126,30 +134,72 @@
                 font-family: 'Courier New', Courier, monospace !important;
             }
 
-            .text-3xl, .text-2xl { font-size: 1.25rem !important; margin-bottom: 0.5rem !important; }
-            .text-xl { font-size: 1.1rem !important; }
-            .text-sm { font-size: 0.85rem !important; }
-            .text-xs { font-size: 0.75rem !important; }
-            .font-bold { font-weight: 700 !important; }
+            .text-3xl,
+            .text-2xl {
+                font-size: 1.25rem !important;
+                margin-bottom: 0.5rem !important;
+            }
+
+            .text-xl {
+                font-size: 1.1rem !important;
+            }
+
+            .text-sm {
+                font-size: 0.85rem !important;
+            }
+
+            .text-xs {
+                font-size: 0.75rem !important;
+            }
+
+            .font-bold {
+                font-weight: 700 !important;
+            }
 
             /* Table packing */
-            table { width: 100% !important; border-collapse: collapse !important; margin: 10px 0 !important; }
-            th { border-bottom: 1px dashed #000 !important; padding: 4px 0 !important; text-align: left !important; }
-            td { padding: 6px 0 !important; vertical-align: top !important; }
-            
+            table {
+                width: 100% !important;
+                border-collapse: collapse !important;
+                margin: 10px 0 !important;
+            }
+
+            th {
+                border-bottom: 1px dashed #000 !important;
+                padding: 4px 0 !important;
+                text-align: left !important;
+            }
+
+            td {
+                padding: 6px 0 !important;
+                vertical-align: top !important;
+            }
+
             /* Borders & Spacing */
-            .border-b, .border-t, .border-gray-200 {
+            .border-b,
+            .border-t,
+            .border-gray-200 {
                 border-color: black !important;
                 border-style: dashed !important;
                 border-width: 1px 0 0 0 !important;
             }
-            
-            .px-8, .py-6 { padding-left: 0 !important; padding-right: 0 !important; }
-            .mt-6, .mb-6 { margin-top: 1rem !important; margin-bottom: 1rem !important; }
+
+            .px-8,
+            .py-6 {
+                padding-left: 0 !important;
+                padding-right: 0 !important;
+            }
+
+            .mt-6,
+            .mb-6 {
+                margin-top: 1rem !important;
+                margin-bottom: 1rem !important;
+            }
 
             /* Ensure amounts align right */
-            .text-right { text-align: right !important; }
-            
+            .text-right {
+                text-align: right !important;
+            }
+
             @page {
                 size: 80mm auto;
                 margin: 0;
@@ -186,8 +236,10 @@
                     class="font-bold text-indigo-600 hover:underline print:text-black print:no-underline">
                     {{ return_record.sale.sale_number }}
                 </a>
-                <p class="text-sm text-gray-600">Customer: {{ return_record.customer.name }}</p>
-                <p class="text-sm text-gray-600">{{ return_record.customer.phone }}</p>
+                <p class="text-sm text-gray-600">Customer: {{ return_record.customer_display_name }}</p>
+                {% if return_record.sale and return_record.sale.customer and return_record.sale.customer.phone %}
+                <p class="text-sm text-gray-600">{{ return_record.sale.customer.phone }}</p>
+                {% endif %}
             </div>
         </div>
 

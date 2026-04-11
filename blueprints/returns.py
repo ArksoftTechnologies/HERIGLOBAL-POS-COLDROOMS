@@ -113,7 +113,8 @@ def process_return():
                 return jsonify({'error': 'You can only return sales you personally made.'}), 403
         
         # 4. Calculate total refund & validate items
-        total_refund = 0
+        from decimal import Decimal
+        total_refund = Decimal('0')
         validated_items = []
         
         for item_data in return_items_data:
@@ -141,7 +142,8 @@ def process_return():
                 )
             
             # Calculate refund for this item
-            item_refund = sale_item.unit_price * qty_to_return
+            from decimal import Decimal
+            item_refund = sale_item.unit_price * Decimal(str(qty_to_return))
             total_refund += item_refund
             
             validated_items.append({
@@ -293,8 +295,8 @@ def process_return():
         
         elif refund_method == 'split':
             # Create split refund records
-            split_total = sum(float(p.get('amount', 0)) for p in refund_payments_data)
-            if abs(split_total - float(total_refund)) > 0.01:
+            split_total = sum(Decimal(str(p.get('amount', 0))) for p in refund_payments_data)
+            if abs(split_total - total_refund) > Decimal('0.01'):
                 raise ValueError(f"Split refund total ({split_total}) does not match return total ({total_refund})")
             
             for payment in refund_payments_data:

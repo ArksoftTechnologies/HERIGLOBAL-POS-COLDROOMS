@@ -7,7 +7,8 @@ class Sale(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     sale_number = db.Column(db.String(50), unique=True, nullable=False)
     outlet_id = db.Column(db.Integer, db.ForeignKey('outlets.id'), nullable=False)
-    customer_id = db.Column(db.Integer, db.ForeignKey('customers.id'), nullable=False)
+    customer_id = db.Column(db.Integer, db.ForeignKey('customers.id'), nullable=True)  # Made nullable for non-registered customers
+    non_registered_customer_name = db.Column(db.String(200), nullable=True)  # For non-registered customer names
     sales_rep_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
     sale_date = db.Column(db.DateTime, default=datetime.utcnow)
     due_date = db.Column(db.Date, nullable=True)  # Due date for credit sales (Chunk 7)
@@ -30,7 +31,24 @@ class Sale(db.Model):
     __table_args__ = (
         db.CheckConstraint('total_amount > 0', name='check_sale_total_amount_positive'),
         db.CheckConstraint("status IN ('completed', 'pending', 'cancelled')", name='check_sale_status_valid'),
+        db.CheckConstraint(
+            '(customer_id IS NOT NULL AND non_registered_customer_name IS NULL) OR '
+            '(customer_id IS NULL AND non_registered_customer_name IS NOT NULL)',
+            name='check_customer_or_name'
+        ),
     )
+
+    @property
+    def customer_display_name(self):
+        """Get display name for customer (registered or non-registered)"""
+        if self.customer:
+            return f"{self.customer.first_name} {self.customer.last_name}"
+        return self.non_registered_customer_name or "Unknown Customer"
+    
+    @property
+    def is_registered_customer(self):
+        """Check if sale is for a registered customer"""
+        return self.customer_id is not None
 
     def __repr__(self):
         return f'<Sale {self.sale_number}>'
