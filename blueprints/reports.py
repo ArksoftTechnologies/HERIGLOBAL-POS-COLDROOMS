@@ -4,6 +4,8 @@ from flask_login import login_required, current_user
 from sqlalchemy import func, case, extract, desc, and_
 from models import db, User, Outlet, Product, Category, Sale, SaleItem, SalePayment, PaymentMode, Inventory, InventoryAdjustment, StockTransfer, Return, ReturnItem, Customer, Expense, Remittance, CashCollection
 from utils.decorators import role_required
+import csv
+import io
 
 reports_bp = Blueprint('reports', __name__, url_prefix='/reports')
 
@@ -324,6 +326,86 @@ def inventory_balance_sheet():
         balance_sheet.append(row)
 
     outlets = Outlet.query.all() if current_user.role in ['super_admin', 'general_manager', 'accountant'] else []
+
+    if request.args.get('format') == 'csv':
+        # Export ALL products (no pagination) with the same movement queries
+        all_products = Product.query.filter_by(is_active=True).order_by(Product.name).all()
+
+        output = io.StringIO()
+        writer = csv.writer(output)
+        writer.writerow([
+            'Product', 'SKU',
+            'Received', 'Sold', 'Returned', 'Damaged', 'Adjusted',
+            'Current Stock', 'Value at Cost (NGN)'
+        ])
+
+        for product in all_products:
+            p_received = db.session.query(func.sum(StockTransfer.quantity)).filter(
+                StockTransfer.product_id == product.id,
+                StockTransfer.to_outlet_id == outlet_id,
+                StockTransfer.status == 'completed',
+                func.date(StockTransfer.received_at) >= date_from,
+                func.date(StockTransfer.received_at) <= date_to
+            ).scalar() or 0
+
+            p_sold = db.session.query(func.sum(SaleItem.quantity)).join(Sale).filter(
+                SaleItem.product_id == product.id,
+                Sale.outlet_id == outlet_id,
+                Sale.status == 'completed',
+                func.date(Sale.sale_date) >= date_from,
+                func.date(Sale.sale_date) <= date_to
+            ).scalar() or 0
+
+            p_returned = db.session.query(func.sum(ReturnItem.quantity_returned)).join(Return).filter(
+                ReturnItem.product_id == product.id,
+                Return.outlet_id == outlet_id,
+                ReturnItem.condition == 'resellable',
+                Return.status == 'completed',
+                func.date(Return.return_date) >= date_from,
+                func.date(Return.return_date) <= date_to
+            ).scalar() or 0
+
+            p_damaged = db.session.query(func.sum(ReturnItem.quantity_returned)).join(Return).filter(
+                ReturnItem.product_id == product.id,
+                Return.outlet_id == outlet_id,
+                ReturnItem.condition == 'damaged',
+                Return.status == 'completed',
+                func.date(Return.return_date) >= date_from,
+                func.date(Return.return_date) <= date_to
+            ).scalar() or 0
+
+            p_adjusted = db.session.query(func.sum(InventoryAdjustment.quantity_change)).filter(
+                InventoryAdjustment.product_id == product.id,
+                InventoryAdjustment.outlet_id == outlet_id,
+                func.date(InventoryAdjustment.adjusted_at) >= date_from,
+                func.date(InventoryAdjustment.adjusted_at) <= date_to
+            ).scalar() or 0
+
+            current_inv = Inventory.query.filter_by(product_id=product.id, outlet_id=outlet_id).first()
+            current_qty = current_inv.quantity if current_inv else 0
+            closing_value = current_qty * float(product.cost_price or 0)
+
+            writer.writerow([
+                product.name,
+                product.sku,
+                p_received,
+                p_sold,
+                p_returned,
+                p_damaged,
+                p_adjusted,
+                current_qty,
+                f"{closing_value:.2f}"
+            ])
+
+        outlet_obj = Outlet.query.get(outlet_id)
+        outlet_label = outlet_obj.name.replace(' ', '_') if outlet_obj else 'Unknown'
+        timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+        filename = f"Inventory_Balance_Sheet_{outlet_label}_{date_from}_to_{date_to}_{timestamp}.csv"
+
+        response = make_response(output.getvalue())
+        response.headers['Content-Type'] = 'text/csv; charset=utf-8'
+        response.headers['Content-Disposition'] = f'attachment; filename="{filename}"'
+        return response
 
     if request.args.get('format') == 'pdf':
         response = make_response(render_template('reports/pdf/inventory_balance_sheet.html',

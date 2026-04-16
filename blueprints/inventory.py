@@ -4,6 +4,8 @@ from models import db, Product, Inventory, Outlet
 from utils.decorators import role_required
 from utils.pdf_generator import PDFGenerator
 from datetime import datetime
+import csv
+import io
 
 inventory_bp = Blueprint('inventory', __name__)
 
@@ -109,6 +111,91 @@ def valuation():
                            total_potential_profit=total_potential_revenue - total_cost_value,
                            all_outlets=all_outlets,
                            selected_outlet=selected_outlet)
+
+
+@inventory_bp.route('/inventory/warehouse/valuation/csv')
+@login_required
+@role_required(['super_admin', 'general_manager', 'accountant'])
+def valuation_csv():
+    """Export inventory valuation data as a CSV file."""
+    outlet_id = request.args.get('outlet_id', '', type=str)
+    all_outlets = Outlet.query.filter_by(is_active=True).order_by(Outlet.id).all()
+
+    base_query = db.session.query(Product, Inventory).join(Inventory)
+    selected_outlet = None
+
+    if outlet_id:
+        try:
+            oid = int(outlet_id)
+            selected_outlet = Outlet.query.get(oid)
+            if selected_outlet:
+                base_query = base_query.filter(Inventory.outlet_id == selected_outlet.id)
+        except (ValueError, TypeError):
+            pass
+
+    inventory_items = base_query.all()
+
+    # Aggregate quantities across outlets (mirrors the valuation view logic)
+    aggregated_data = {}
+    for p, i in inventory_items:
+        if p.id not in aggregated_data:
+            aggregated_data[p.id] = {'product': p, 'quantity': 0}
+        aggregated_data[p.id]['quantity'] += i.quantity
+
+    # Build CSV in memory
+    output = io.StringIO()
+    writer = csv.writer(output)
+
+    # Header row
+    writer.writerow([
+        'Product Name', 'SKU', 'Quantity',
+        'Unit Cost (NGN)', 'Total Cost (NGN)',
+        'Unit Price (NGN)', 'Potential Revenue (NGN)', 'Potential Profit (NGN)'
+    ])
+
+    total_cost = 0
+    total_revenue = 0
+
+    for data in aggregated_data.values():
+        p = data['product']
+        qty = data['quantity']
+        cost_value = float(p.cost_price) * qty
+        potential_rev = float(p.selling_price) * qty
+        potential_profit = potential_rev - cost_value
+
+        total_cost += cost_value
+        total_revenue += potential_rev
+
+        writer.writerow([
+            p.name,
+            p.sku,
+            qty,
+            f"{float(p.cost_price):.2f}",
+            f"{cost_value:.2f}",
+            f"{float(p.selling_price):.2f}",
+            f"{potential_rev:.2f}",
+            f"{potential_profit:.2f}"
+        ])
+
+    # Totals row
+    writer.writerow([])
+    writer.writerow([
+        'GRAND TOTALS', '', '',
+        '', f"{total_cost:.2f}",
+        '', f"{total_revenue:.2f}",
+        f"{total_revenue - total_cost:.2f}"
+    ])
+
+    # Build the filename
+    outlet_label = selected_outlet.name.replace(' ', '_') if selected_outlet else 'All_Outlets'
+    timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+    filename = f"Inventory_Valuation_{outlet_label}_{timestamp}.csv"
+
+    response = make_response(output.getvalue())
+    response.headers['Content-Type'] = 'text/csv; charset=utf-8'
+    response.headers['Content-Disposition'] = f'attachment; filename="{filename}"'
+    return response
+
 
 @inventory_bp.route('/inventory/outlets')
 @login_required

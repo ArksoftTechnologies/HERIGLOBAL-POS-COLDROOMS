@@ -1,4 +1,4 @@
-from flask import Blueprint, render_template, request, jsonify, url_for, flash, redirect, current_app, send_file, abort
+from flask import Blueprint, render_template, request, jsonify, url_for, flash, redirect, current_app, send_file, abort, make_response
 from flask_login import login_required, current_user
 from app import db
 from models.expense import Expense, ExpenseCategory
@@ -10,6 +10,7 @@ from sqlalchemy import func, desc
 from functools import wraps
 from utils.pdf_generator import PDFGenerator
 import io
+import csv
 
 expenses_bp = Blueprint('expenses', __name__, url_prefix='/expenses')
 
@@ -99,6 +100,82 @@ def index():
                            total_amount=total_amount,
                            today_amount=today_amount,
                            today=date.today())
+
+
+@expenses_bp.route('/export/csv', methods=['GET'])
+@login_required
+@role_required(['super_admin', 'general_manager', 'outlet_admin', 'sales_rep', 'accountant'])
+def export_csv():
+    """Export the current expenses view as a CSV download.
+    Respects the same role-based scoping and GET filter params as index().
+    """
+    date_from   = request.args.get('date_from')
+    date_to     = request.args.get('date_to')
+    outlet_id   = request.args.get('outlet_id', type=int)
+    category_id = request.args.get('category_id', type=int)
+    recorded_by = request.args.get('recorded_by', type=int)
+
+    query = Expense.query
+
+    # Role-based filtering — mirrors index()
+    if current_user.role in ['outlet_admin', 'sales_rep']:
+        if current_user.role == 'sales_rep':
+            query = query.filter(Expense.recorded_by == current_user.id)
+        else:
+            query = query.filter(Expense.outlet_id == current_user.outlet_id)
+
+    # Apply filters
+    if date_from:
+        query = query.filter(Expense.expense_date >= date_from)
+    if date_to:
+        query = query.filter(Expense.expense_date <= date_to)
+    if outlet_id and current_user.role in ['super_admin', 'general_manager', 'accountant']:
+        query = query.filter(Expense.outlet_id == outlet_id)
+    if category_id:
+        query = query.filter(Expense.category_id == category_id)
+    if recorded_by:
+        query = query.filter(Expense.recorded_by == recorded_by)
+
+    expenses = query.order_by(Expense.expense_date.desc(), Expense.id.desc()).all()
+
+    # Build CSV
+    output = io.StringIO()
+    writer = csv.writer(output)
+
+    # Header
+    writer.writerow([
+        'Expense #', 'Date', 'Recorded By', 'Outlet',
+        'Category', 'Description', 'Amount (NGN)', 'Status'
+    ])
+
+    grand_total = 0.0
+    for expense in expenses:
+        amount = float(expense.amount)
+        grand_total += amount
+        writer.writerow([
+            expense.expense_number,
+            expense.expense_date.strftime('%Y-%m-%d'),
+            expense.recorder.full_name if expense.recorder else '',
+            expense.outlet.name if expense.outlet else '',
+            expense.category.name if expense.category else '',
+            expense.description,
+            f"{amount:.2f}",
+            expense.status.capitalize() if expense.status else ''
+        ])
+
+    # Totals row
+    writer.writerow([])
+    writer.writerow(['TOTAL', '', '', '', '', '', f"{grand_total:.2f}", ''])
+
+    # Dynamic filename
+    timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+    filename = f"Expenses_Export_{timestamp}.csv"
+
+    response = make_response(output.getvalue())
+    response.headers['Content-Type'] = 'text/csv; charset=utf-8'
+    response.headers['Content-Disposition'] = f'attachment; filename="{filename}"'
+    return response
+
 
 @expenses_bp.route('/create', methods=['GET', 'POST'])
 @login_required

@@ -16,12 +16,25 @@
             <p class="text-sm text-gray-500">Track and manage operational expenses</p>
             {% endif %}
         </div>
-        {% if current_user.role in ['super_admin', 'general_manager', 'outlet_admin', 'sales_rep'] %}
-        <a href="{{ url_for('expenses.create') }}"
-            class="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-lg text-white bg-primary hover:bg-primary/90 focus:outline-none">
-            <i data-lucide="plus" class="w-4 h-4 mr-2"></i> Record New Expense
-        </a>
-        {% endif %}
+        <div class="flex items-center gap-2 flex-wrap">
+            {# CSV export — passes all active filters so the download matches the current view #}
+            <a href="{{ url_for('expenses.export_csv',
+                        date_from=request.args.get('date_from', ''),
+                        date_to=request.args.get('date_to', ''),
+                        outlet_id=request.args.get('outlet_id', ''),
+                        category_id=request.args.get('category_id', ''),
+                        recorded_by=request.args.get('recorded_by', '')) }}"
+                class="inline-flex items-center px-4 py-2 border border-emerald-600 shadow-sm text-sm font-medium rounded-lg text-emerald-700 bg-white hover:bg-emerald-50 focus:outline-none transition-colors">
+                <i data-lucide="file-down" class="w-4 h-4 mr-2"></i>
+                Download CSV
+            </a>
+            {% if current_user.role in ['super_admin', 'general_manager', 'outlet_admin', 'sales_rep'] %}
+            <a href="{{ url_for('expenses.create') }}"
+                class="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-lg text-white bg-primary hover:bg-primary/90 focus:outline-none">
+                <i data-lucide="plus" class="w-4 h-4 mr-2"></i> Record New Expense
+            </a>
+            {% endif %}
+        </div>
     </div>
 
     <!-- Summary Cards -->
